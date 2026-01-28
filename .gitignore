@@ -41,3 +41,10 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Project-specific files
+CLAUDE.md
+TIMELINE.md
+
+# Previous team's codebase (reference only, not part of this repo)
+prev-team/
