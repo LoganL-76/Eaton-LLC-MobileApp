@@ -1,17 +1,8 @@
-import { Text, View } from "react-native";
+import { Redirect } from 'expo-router';
 
 export default function Index() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text> Hello Team!</Text>
-      <Text>Edit app/index.tsx to edit this screen.</Text>
-      <Text>Changes you make will automatically reload. or Ctr + S</Text>
-    </View>
-  );
+  // TODO: Check if user is authenticated
+  // if authenticated, redirect to (tabs)
+  // for now, we will always redirect to login
+  return <Redirect href="/(auth)/login" />;
 }
