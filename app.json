@@ -20,10 +20,20 @@
       "output": "static"
     },
     "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
