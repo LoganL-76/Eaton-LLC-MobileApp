@@ -31,5 +31,5 @@ jobs:
       - name: Build Android (Preview)
         run: eas build --platform android --profile preview --non-interactive
 
-      - name: Build iOS (Preview)
-        run: eas build --platform ios --profile preview --non-interactive
+      # - name: Build iOS (Preview)
+      #   run: eas build --platform ios --profile preview --non-interactive
