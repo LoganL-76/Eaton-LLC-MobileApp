@@ -2,9 +2,11 @@ import { Link, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../lib/ThemeContext';
 
 
 export default function LoginScreen() {
+  const { theme, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -12,13 +14,15 @@ export default function LoginScreen() {
     // no authentication yet, just navigate to the main app
     router.replace('/(tabs)/myjobs');
   };
+  // Build styles inside component to have access to theme values
+  const styles = makeStyles(theme);
 
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       
       <View style={styles.content}>
         {/* Header */}
@@ -32,7 +36,7 @@ export default function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#999"
+            placeholderTextColor= {theme.colors.textTertiary}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
@@ -42,7 +46,7 @@ export default function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#999"
+            placeholderTextColor= {theme.colors.textTertiary}
             secureTextEntry
             autoComplete="password"
             // TODO: Add value and onChangeText
@@ -58,7 +62,7 @@ export default function LoginScreen() {
           <Link href="/(auth)/forgotpassword" asChild>
             <TouchableOpacity style={styles.linkContainer}>
               <Text style={styles.linkText}>
-                Forgot your password? <Text style={styles.linkBold}>Forgot Password</Text>
+                Forgot your password? <Text style={styles.linkBold}>Reset it</Text>
               </Text>
             </TouchableOpacity>
           </Link>
@@ -68,61 +72,63 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').useTheme>['theme']) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,
-    padding: 24,
+    padding: theme.spacing.lg,
     justifyContent: 'center',
   },
   header: {
-    marginBottom: 48,
+    marginBottom: theme.spacing.xxl,
   },
   title: {
-    fontSize: 32,
+    fontSize: theme.fontSize.xxxl,
     fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#000',
+    marginBottom: theme.spacing.sm,
+    color: theme.colors.text,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
   },
   form: {
-    gap: 16,
+    gap: theme.spacing.md,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    backgroundColor: theme.colors.surfaceSecondary,
   },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: theme.colors.primary,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: theme.spacing.sm,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: theme.colors.textInverse,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
   },
   linkContainer: {
-    marginTop: 16,
+    marginTop: theme.spacing.md,
   },
   linkText: {
     textAlign: 'center',
-    color: '#666',
+    color: theme.colors.textSecondary,
   },
   linkBold: {
-    color: '#007AFF',
-    fontWeight: '600',
+    color: theme.colors.primary,
+    fontWeight: theme.fontWeight.semibold,
   },
 });
+}

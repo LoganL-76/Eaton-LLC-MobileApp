@@ -1,6 +1,4 @@
 
-
-
 const sharedColors = {
   // Brand
   primary: '#2469FF',

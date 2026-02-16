@@ -1,14 +1,26 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Tabs } from "expo-router";
+import { useTheme } from "../../lib/ThemeContext";
 
 export default function TabLayout() {
+    const { theme } = useTheme();
     // Commented out for dev
     // const { user } = useAuth();
     // if (!user) {
     //     return <Redirect href="/login" />;
     // }
+
     return (
-        <Tabs>
+        <Tabs
+            screenOptions={{
+                headerStyle: { backgroundColor: theme.colors.primary },
+                headerTitleStyle: { color: theme.colors.text, fontSize: theme.fontSize.lg, fontWeight: theme.fontWeight.bold },
+                headerTintColor: theme.colors.text,
+                tabBarStyle: { backgroundColor: theme.colors.background, borderTopColor: theme.colors.border },
+                tabBarActiveTintColor: theme.colors.primary,
+                tabBarInactiveTintColor: theme.colors.textSecondary,
+            }}
+        >
             <Tabs.Screen
                 name="myjobs"
                 options = {{

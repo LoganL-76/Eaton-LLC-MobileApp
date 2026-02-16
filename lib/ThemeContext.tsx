@@ -13,6 +13,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+// ThemeProvider component to wrap the app and provide theme context, wrapped at the root level in app/_layout.tsx
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemColorScheme = useColorScheme(); // Auto-detect system preference
   const [mode, setMode] = useState<ThemeMode>('system');
