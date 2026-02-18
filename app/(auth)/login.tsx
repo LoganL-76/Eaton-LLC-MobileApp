@@ -1,18 +1,36 @@
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../lib/ThemeContext';
-
 
 export default function LoginScreen() {
   const { theme, isDark } = useTheme();
+  const { login } = useAuth();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignIn = () => {
-    // no authentication yet, just navigate to the main app
-    router.replace('/(tabs)/myjobs');
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      setError('Please enter your email and password');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    const { error: authError } = await login(email, password);
+
+    if (authError) {
+      setError(authError);
+      setIsLoading(false);
+    } else {
+      router.replace('/(tabs)/myjobs');
+    }
   };
   // Build styles inside component to have access to theme values
   const styles = makeStyles(theme);
@@ -40,7 +58,9 @@ export default function LoginScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
-            // TODO: Add value and onChangeText
+            value={email}
+            onChangeText={setEmail}
+            editable={!isLoading}
           />
 
           <TextInput
@@ -49,23 +69,30 @@ export default function LoginScreen() {
             placeholderTextColor= {theme.colors.textTertiary}
             secureTextEntry
             autoComplete="password"
-            // TODO: Add value and onChangeText
+            value={password}
+            onChangeText={setPassword}
+            editable={!isLoading}
           />
 
           <TouchableOpacity 
             style={styles.button}
             onPress = {handleSignIn}
+            disabled={isLoading}
           >
-            <Text style={styles.buttonText}>Sign In</Text>
+            {isLoading 
+              ? <ActivityIndicator color={theme.colors.textInverse} />
+              : <Text style={styles.buttonText}>Sign In</Text>
+            }
           </TouchableOpacity>
 
-          <Link href="/(auth)/forgotpassword" asChild>
-            <TouchableOpacity style={styles.linkContainer}>
-              <Text style={styles.linkText}>
-                Forgot your password? <Text style={styles.linkBold}>Reset it</Text>
-              </Text>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity 
+           style={styles.linkContainer}
+           onPress={() => router.push('/(auth)/forgotpassword')}
+           >
+            <Text style={styles.linkText}>
+              Forgot your password? <Text style={styles.linkBold}>Reset it</Text>
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -106,6 +133,7 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     padding: theme.spacing.md,
     fontSize: theme.fontSize.md,
     backgroundColor: theme.colors.surfaceSecondary,
+    color: theme.colors.text,
   },
   button: {
     backgroundColor: theme.colors.primary,
@@ -114,6 +142,7 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     alignItems: 'center',
     marginTop: theme.spacing.sm,
   },
+  buttonDisabled: { opacity: 0.6 },
   buttonText: {
     color: theme.colors.textInverse,
     fontSize: theme.fontSize.md,
