@@ -4,6 +4,7 @@ const sharedColors = {
   primary: '#2469FF',
   primaryDark: '#1A4FCC',
   primaryLight: '#5B8FFF',
+  pageTitle: '#FFFFFF',
   
   // Status colors (same for both themes)
   success: '#34C759',
