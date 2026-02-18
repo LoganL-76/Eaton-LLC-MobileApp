@@ -1,16 +1,19 @@
 import { Link } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useTheme } from '../../lib/ThemeContext';
 
 export default function SignupScreen() {
   // TODO: Add state management for form fields
   // TODO: Add validation
   // TODO: Add authentication logic
-
+  const { theme, isDark } = useTheme();
+  const styles = makeStyles(theme);
+  
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
       <StatusBar style="dark" />
       
@@ -83,7 +86,8 @@ export default function SignupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').useTheme>['theme']) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -141,3 +145,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+}
