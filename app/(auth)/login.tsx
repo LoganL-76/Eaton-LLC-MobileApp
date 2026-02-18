@@ -1,16 +1,35 @@
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../context/AuthContext';
+import { login } from '../services/api';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { saveTokens } = useAuth();
 
-  const handleSignIn = () => {
-    // no authentication yet, just navigate to the main app
-    router.replace('/(tabs)/myjobs');
+  const handleSignIn = async () => {
+    if (!username || !password) {
+      setError('Please enter your username and password.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await login(username, password);
+      await saveTokens(data.access, data.refresh);
+      // _layout.tsx will automatically redirect to (tabs)/myjobs
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,12 +50,12 @@ export default function LoginScreen() {
         <View style={styles.form}>
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Username"
             placeholderTextColor="#999"
-            keyboardType="email-address"
             autoCapitalize="none"
-            autoComplete="email"
-            // TODO: Add value and onChangeText
+            autoComplete="username"
+            value={username}
+            onChangeText={setUsername}
           />
 
           <TextInput
@@ -45,20 +64,27 @@ export default function LoginScreen() {
             placeholderTextColor="#999"
             secureTextEntry
             autoComplete="password"
-            // TODO: Add value and onChangeText
+            value={password}
+            onChangeText={setPassword}
           />
 
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
           <TouchableOpacity 
-            style={styles.button}
-            onPress = {handleSignIn}
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleSignIn}
+            disabled={loading}
           >
-            <Text style={styles.buttonText}>Sign In</Text>
+            {loading 
+              ? <ActivityIndicator color="#fff" /> 
+              : <Text style={styles.buttonText}>Sign In</Text>
+            }
           </TouchableOpacity>
 
           <Link href="/(auth)/forgotpassword" asChild>
             <TouchableOpacity style={styles.linkContainer}>
               <Text style={styles.linkText}>
-                Forgot your password? <Text style={styles.linkBold}>Forgot Password</Text>
+                Forgot your password? <Text style={styles.linkBold}>Reset Password</Text>
               </Text>
             </TouchableOpacity>
           </Link>
@@ -109,10 +135,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
+  buttonDisabled: {
+    backgroundColor: '#99c4ff',
+  },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  errorText: {
+    color: '#cc0000',
+    fontSize: 14,
+    textAlign: 'center',
   },
   linkContainer: {
     marginTop: 16,
