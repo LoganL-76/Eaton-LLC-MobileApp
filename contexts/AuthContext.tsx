@@ -5,7 +5,7 @@ import { api, TOKEN_KEYS } from '../services/api';
 interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
-    login: (email: string, password: string) => Promise< {error: string | null} >;
+    login: (username: string, password: string) => Promise< {error: string | null} >;
     logout: () => Promise<void>;
 }
 
@@ -30,9 +30,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         checkTokens();
     }, []);
 
-    const login = async (email: string, password: string): Promise<{ error: string | null }> => {
+    const login = async (username: string, password: string): Promise<{ error: string | null }> => {
         try { 
-            const response = await api.post('/auth/token/', { email, password });
+            const response = await api.post('/login/', { username, password });
             const { access, refresh } = response.data;
 
             await SecureStore.setItemAsync(TOKEN_KEYS.access, access);

@@ -36,7 +36,7 @@ api.interceptors.response.use(
                 if (!refreshToken) throw new Error('No refresh token');
 
                 // Try to get a new access token
-                const response = await axios.post('${BASE_URL}/auth/token/refresh/', { refresh: refreshToken });
+                const response = await axios.post(`${BASE_URL}/token/refresh/`, { refresh: refreshToken });
 
                 const newAccessToken = response.data.access;
                 await SecureStore.setItemAsync(TOKEN_KEYS.access, newAccessToken); // Store the new access token

@@ -9,21 +9,21 @@ export default function LoginScreen() {
   const { theme, isDark } = useTheme();
   const { login } = useAuth();
 
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignIn = async () => {
-    if (!email || !password) {
-      setError('Please enter your email and password');
+    if (!username || !password) {
+      setError('Please enter your username and password');
       return;
     }
 
     setIsLoading(true);
     setError('');
 
-    const { error: authError } = await login(email, password);
+    const { error: authError } = await login(username, password);
 
     if (authError) {
       setError(authError);
@@ -57,9 +57,9 @@ export default function LoginScreen() {
             placeholderTextColor= {theme.colors.textTertiary}
             keyboardType="email-address"
             autoCapitalize="none"
-            autoComplete="email"
-            value={email}
-            onChangeText={setEmail}
+            autoComplete="username"
+            value={username}
+            onChangeText={setUsername}
             editable={!isLoading}
           />
 

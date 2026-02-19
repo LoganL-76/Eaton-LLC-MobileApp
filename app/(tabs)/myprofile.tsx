@@ -1,12 +1,20 @@
+import { router } from 'expo-router';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../lib/ThemeContext';
 
 export default function MyProfileScreen() {
     const { theme, mode, setMode, isDark } = useTheme();
+    const { logout } = useAuth();
     
 
     const handleToggleTheme = () => {
         setMode(isDark ? 'light' : 'dark');
+    };
+
+    const handleLogout = async () => {
+        await logout();
+        router.replace('/(auth)/login');
     };
 
     const styles = makeStyles(theme);
@@ -25,6 +33,10 @@ export default function MyProfileScreen() {
             <Text style={styles.currentMode}>
                 Current Mode: {mode}
             </Text>
+            
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                <Text style={styles.logoutButtonText}>Logout</Text>
+            </TouchableOpacity>
         </View>
     );
 }
@@ -65,6 +77,19 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
         marginTop: theme.spacing.md,
         fontSize: theme.fontSize.sm,
         color: theme.colors.textSecondary,
+    },
+    logoutButton: {
+        borderWidth: 1,
+        borderColor: theme.colors.error,
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.lg,
+        borderRadius: theme.borderRadius.md,
+        marginTop:theme.spacing.md,
+    },
+    logoutButtonText: {
+        color: theme.colors.error,
+        fontSize: theme.fontSize.md,
+        fontWeight: theme.fontWeight.semibold,
     },
 
 });
