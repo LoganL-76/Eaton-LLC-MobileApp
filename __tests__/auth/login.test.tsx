@@ -2,7 +2,7 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import LoginScreen from '../../app/(auth)/login';
 
-// --- Jest-safe mocks (must start with "mock" due to hoisting rules) ---
+// mocks
 
 const mockReplace = jest.fn();
 const mockLink = jest.fn(({ children }: any) => <>{children}</>);
