@@ -8,7 +8,7 @@
   type TokenStorageAdapter,
 } from "../../lib/tokenStorage";
 
-describe("tokenStorage (M-35)", () => {
+describe("tokenStorage", () => {
   beforeEach(() => {
     __resetTokenStorageForTests();
   });
