@@ -53,7 +53,7 @@ export default function LoginScreen() {
         <View style={styles.form}>
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Username"
             placeholderTextColor= {theme.colors.textTertiary}
             keyboardType="email-address"
             autoCapitalize="none"
