@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
@@ -11,6 +12,7 @@ export default function LoginScreen() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -53,9 +55,8 @@ export default function LoginScreen() {
         <View style={styles.form}>
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder="Username"
             placeholderTextColor= {theme.colors.textTertiary}
-            keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="username"
             value={username}
@@ -63,16 +64,28 @@ export default function LoginScreen() {
             editable={!isLoading}
           />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor= {theme.colors.textTertiary}
-            secureTextEntry
-            autoComplete="password"
-            value={password}
-            onChangeText={setPassword}
-            editable={!isLoading}
-          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Password"
+              placeholderTextColor={theme.colors.textTertiary}
+              secureTextEntry={!showPassword}
+              autoComplete="password"
+              value={password}
+              onChangeText={setPassword}
+              editable={!isLoading}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(prev => !prev)}
+              style={styles.eyeButton}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off' : 'eye'}
+                size={20}
+                color={theme.colors.textTertiary}
+              />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity 
             style={styles.button}
@@ -134,6 +147,23 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     fontSize: theme.fontSize.md,
     backgroundColor: theme.colors.surfaceSecondary,
     color: theme.colors.text,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surfaceSecondary,
+  },
+  passwordInput: {
+    flex: 1,
+    padding: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+  },
+  eyeButton: {
+    padding: theme.spacing.md,
   },
   button: {
     backgroundColor: theme.colors.primary,
