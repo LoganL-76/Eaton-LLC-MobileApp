@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
@@ -34,8 +35,8 @@ export default function ForgotPasswordScreen() {
     try {
       await api.post('/auth/password-reset/', { email });
       setStep(2);
-    } catch (err: any) {
-      if (!err.response) {
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && !err.response) {
         setError('Network error. Please try again.');
       } else {
         setError('Could not send reset code. Check your email and try again.');
@@ -60,11 +61,15 @@ export default function ForgotPasswordScreen() {
     try {
       await api.post('/auth/password-reset/verify/', { email, code: otp });
       setStep(3);
-    } catch (err: any) {
-      if (!err.response) {
-        setError('Network error. Please try again.');
-      } else if (err.response.status === 400) {
-        setError('Invalid or expired code. Please try again.');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        if (!err.response) {
+          setError('Network error. Please try again.');
+        } else if (err.response.status === 400) {
+          setError('Invalid or expired code. Please try again.');
+        } else {
+          setError('Something went wrong. Please try again.');
+        }
       } else {
         setError('Something went wrong. Please try again.');
       }
@@ -92,8 +97,8 @@ export default function ForgotPasswordScreen() {
         new_password: newPassword,
       });
       router.replace('/(auth)/login');
-    } catch (err: any) {
-      if (!err.response) {
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && !err.response) {
         setError('Network error. Please try again.');
       } else {
         setError('Something went wrong. Please try again.');

@@ -1,3 +1,4 @@
+import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { api, TOKEN_KEYS } from '../services/api';
@@ -41,14 +42,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAuthenticated(true);
             return { error: null };
 
-        } catch (error: any) {
-            //Django returns 401 for bad credentials
-            if (error.response?.status === 401) {
-                return { error: 'Invalid email or password' };
-            }
-            //Network error (backend not running, no internet, etc)
-            if (!error.response) {
-                return { error: 'Network error. Please try again.' };
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                // Django returns 401 for bad credentials
+                if (error.response?.status === 401) {
+                    return { error: 'Invalid username or password' };
+                }
+                // Network error (backend not running, no internet, etc)
+                if (!error.response) {
+                    return { error: 'Network error. Please try again.' };
+                }
             }
             return { error: 'An unexpected error occurred. Please try again.' };
         }

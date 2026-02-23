@@ -13,8 +13,11 @@ export default function MyProfileScreen() {
     };
 
     const handleLogout = async () => {
-        await logout();
-        router.replace('/(auth)/login');
+        try {
+            await logout();
+        } finally {
+            router.replace('/(auth)/login');
+        }
     };
 
     const styles = makeStyles(theme);
