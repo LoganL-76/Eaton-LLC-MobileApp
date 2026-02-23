@@ -17,8 +17,18 @@ export const api = axios.create({
         'Content-Type': 'application/json',
     },
 });
-
 //REQUEST INTERCEPTOR
+api.interceptors.request.use(async (config) => {
+    const token = await SecureStore.getItemAsync(TOKEN_KEYS.access);
+
+    if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return config;
+});
+
+//RESPONSE INTERCEPTOR
 // runs after every API response - if the response is 401, it tries to refresh the access token using the refresh token. If that fails, it logs out the user.
 api.interceptors.response.use(
     (response) => response, // If the response is successful, just return it
