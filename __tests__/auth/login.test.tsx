@@ -4,7 +4,7 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import LoginScreen from '../../app/(auth)/login';
 import { ThemeProvider } from '../../lib/ThemeContext';
 
-// Router Mocks 
+// Router Mocks
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
 
@@ -15,7 +15,7 @@ jest.mock('expo-router', () => ({
   },
 }));
 
-// Auth Mock 
+// Auth Mock
 const mockLogin = jest.fn();
 
 jest.mock('../../contexts/AuthContext', () => ({
@@ -41,6 +41,45 @@ describe('LoginScreen', () => {
     expect(getByText('Sign In')).toBeTruthy();
 
     expect(queryByTestId('login-error')).toBeNull();
+  });
+
+  it('renders header text', () => {
+    const { getByText } = render(
+      <ThemeProvider>
+        <LoginScreen />
+      </ThemeProvider>
+    );
+
+    expect(getByText('Welcome Back')).toBeTruthy();
+    expect(getByText('Sign in to continue')).toBeTruthy();
+  });
+
+  it('navigates to forgot password screen when "Reset it" is pressed', () => {
+    const { getByText } = render(
+      <ThemeProvider>
+        <LoginScreen />
+      </ThemeProvider>
+    );
+
+    fireEvent.press(getByText('Reset it'));
+
+    expect(mockPush).toHaveBeenCalledWith('/(auth)/forgotpassword');
+  });
+
+  it('shows validation error when username and/or password is empty and does not call login', async () => {
+    const { getByText, findByTestId } = render(
+      <ThemeProvider>
+        <LoginScreen />
+      </ThemeProvider>
+    );
+
+    fireEvent.press(getByText('Sign In'));
+
+    const errorNode = await findByTestId('login-error');
+    expect(errorNode.props.children).toBe('Please enter your username and password');
+
+    expect(mockLogin).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it('shows error message for invalid credentials and does not navigate', async () => {
@@ -128,18 +167,17 @@ describe('LoginScreen', () => {
 
     fireEvent.press(signInText);
 
-    // While pending, the button swaps text -> spinner (so "Sign In" disappears)
+    // Spinner replaces text
     expect(queryByText('Sign In')).toBeNull();
 
-    // Inputs should be disabled while loading
+    // Inputs disabled
     expect(getByPlaceholderText('Username').props.editable).toBe(false);
     expect(getByPlaceholderText('Password').props.editable).toBe(false);
 
-    // Button should be disabled: pressing again should NOT call login twice
+    // No double submit
     fireEvent.press(signInText);
     expect(mockLogin).toHaveBeenCalledTimes(1);
 
-    // Cleanup: resolve to avoid dangling async + flush state updates
     resolveLogin!({ error: 'Invalid username or password' });
 
     await waitFor(() => {
