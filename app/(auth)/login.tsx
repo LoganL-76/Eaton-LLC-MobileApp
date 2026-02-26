@@ -87,7 +87,9 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity 
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          <TouchableOpacity
             style={styles.button}
             onPress = {handleSignIn}
             disabled={isLoading}
@@ -177,6 +179,10 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     color: theme.colors.textInverse,
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold,
+  },
+  errorText: {
+    color: '#e53e3e',
+    fontSize: theme.fontSize.sm,
   },
   linkContainer: {
     marginTop: theme.spacing.md,

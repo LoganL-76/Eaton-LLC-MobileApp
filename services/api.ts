@@ -2,7 +2,7 @@ import axios from 'axios';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:8000/api';
 
 //Keys used to store tokens in SecureStore
 export const TOKEN_KEYS = {
@@ -27,7 +27,7 @@ api.interceptors.response.use(
         const originalRequest = error.config;
 
         // If the error is a 401 and we haven't already tried to refresh
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/login/')) {
             originalRequest._retry = true; // flag to prevent infinite loops
 
             try {

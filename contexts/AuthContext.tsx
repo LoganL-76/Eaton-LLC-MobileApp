@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error: any) {
             //Django returns 401 for bad credentials
             if (error.response?.status === 401) {
-                return { error: 'Invalid email or password' };
+                return { error: error.response.data?.error || 'Invalid username or password.' };
             }
             //Network error (backend not running, no internet, etc)
             if (!error.response) {
