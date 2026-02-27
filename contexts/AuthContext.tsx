@@ -12,6 +12,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Decodes the JWT payload to extract user_id without a library.
+// atob is available in Hermes (Expo 54+).
+function parseJwtPayload(token: string): { user_id?: number } | null {
+    try {
+        const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(atob(base64));
+    } catch {
+        return null;
+    }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -32,12 +43,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = async (username: string, password: string): Promise<{ error: string | null }> => {
-        try { 
+        try {
             const response = await api.post('/login/', { username, password });
             const { access, refresh } = response.data;
 
             await SecureStore.setItemAsync(TOKEN_KEYS.access, access);
             await SecureStore.setItemAsync(TOKEN_KEYS.refresh, refresh);
+
+            // Client-side driver role gate.
+            // Decode the JWT to get user_id, then verify a Driver record exists for that user.
+            // Note: backend needs IsAuthenticated permission class for production enforcement.
+            const payload = parseJwtPayload(access);
+            if (payload?.user_id) {
+                const driversResponse = await api.get('/drivers/');
+                const drivers: { user: number }[] = driversResponse.data;
+                const isDriver = drivers.some((d) => d.user === payload.user_id);
+
+                if (!isDriver) {
+                    await SecureStore.deleteItemAsync(TOKEN_KEYS.access);
+                    await SecureStore.deleteItemAsync(TOKEN_KEYS.refresh);
+                    return { error: 'Access denied. This app is for drivers only.' };
+                }
+            }
 
             setIsAuthenticated(true);
             return { error: null };
