@@ -1,10 +1,10 @@
 # System Design Document: Eaton Partner Mobile App
 
-> **Document Version:** 1.0 (Draft)
-> **Last Updated:** [DATE]
+> **Document Version:** 1.1
+> **Last Updated:** 2026-02-28
 > **Author(s):** [Team Lead Name]
 > **Reviewers:** [Mobile Dev, Backend Dev, QA Dev]
-> **Status:** Draft | In Review | Approved
+> **Status:** In Review
 
 ---
 

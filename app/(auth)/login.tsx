@@ -74,6 +74,12 @@ export default function LoginScreen() {
             editable={!isLoading}
           />
 
+          {error ? (
+            <Text testID="login-error" style={styles.errorText}>
+              {error}
+            </Text>
+          ) : null}
+
           <TouchableOpacity 
             style={styles.button}
             onPress = {handleSignIn}
@@ -159,5 +165,10 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     color: theme.colors.primary,
     fontWeight: theme.fontWeight.semibold,
   },
+  errorText: {
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.xs,
+  },
+  
 });
 }
