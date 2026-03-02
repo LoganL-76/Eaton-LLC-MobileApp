@@ -9,7 +9,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="job/[id]" options={{ title: 'Job Detail', headerShown: true }} />
+        <Stack.Screen name="job/[id]" options={{ title: 'Job Details', headerShown: true }} />
       </Stack>
       </AuthProvider>
     </ThemeProvider>
