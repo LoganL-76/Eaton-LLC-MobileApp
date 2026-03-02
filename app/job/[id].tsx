@@ -1,7 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
 
+// replace with const res = await api.get('/jobs/${id}/')
 const MOCK_JOB = {
   id: 1,
   job_number: 'J-001',
@@ -22,6 +24,16 @@ export default function JobDetailScreen() {
   const { id } = useLocalSearchParams();
   const { theme } = useTheme();
   const styles = makeStyles(theme);
+  
+  // 
+  const [status, setStatus] = useState(MOCK_JOB.status);
+  const STATUS_STEPS = ['assigned', 'en_route', 'on_site', 'completed'];
+  const STATUS_LABELS = {
+    assigned: 'Assigned',
+    en_route: 'En Route',
+    on_site: 'On Site',
+    completed: 'Completed'
+  };
 
   return (
     <ScrollView style={{ backgroundColor: theme.colors.background }}>
@@ -55,7 +67,42 @@ export default function JobDetailScreen() {
           <Text style={styles.sectionTitle}>Truck</Text>
           <Text style={styles.detail}>{MOCK_JOB.truck_number} · {MOCK_JOB.truck_type}</Text>
         </View>
+        
+        {/* Status */}
+        <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Status</Text>
+            <View style={styles.statusRow}>
+                {STATUS_STEPS.map((step, index) => {
+                    const currentIndex = STATUS_STEPS.indexOf(status);
+                    const isCompleted = index < currentIndex;
+                    const isCurrent = index === currentIndex;
+                    const isNext = index === currentIndex + 1;
 
+                    return (
+                        <TouchableOpacity
+                        key = {step}
+                        style={[
+                            styles.statusStep,
+                            isCurrent && styles.statusStepCurrent,
+                            isCompleted && styles.statusStepCompleted
+                        ]}
+                        onPress={() => {
+                            if (isNext) setStatus(step);
+                        }}
+                        disabled={!isNext}
+                        >
+                            <Text style={[
+                                styles.statusStepText,
+                                isCurrent && styles.statusStepTextCurrent,
+                                isCompleted && styles.statusStepTextCompleted
+                            ] as any}>
+                                {STATUS_LABELS[step as keyof typeof STATUS_LABELS]}
+                            </Text>
+                        </TouchableOpacity>
+                        );
+                    })}
+            </View>    
+        </View>
       </View>
     </ScrollView>
   );
@@ -100,6 +147,39 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     detail: {
       fontSize: theme.fontSize.md,
       color: theme.colors.textSecondary,
+    },
+    statusRow: {
+        flexDirection: 'row',
+        gap: theme.spacing.xs,
+    },
+    statusStep: {
+        paddingVertical: theme.spacing.sm,
+        flex: 1,
+        borderRadius: theme.borderRadius.md,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        alignItems: 'center',
+    },
+    statusStepCurrent: {
+        borderColor: theme.colors.primary,
+        backgroundColor: theme.colors.primary,
+    },
+    statusStepCompleted: {
+        borderColor: theme.colors.primary,
+        backgroundColor: theme.colors.primary,
+    },
+    statusStepText: {
+      fontSize: theme.fontSize.xs,
+      color: theme.colors.textSecondary,
+      fontWeight: theme.fontWeight.medium,
+      textAlign: 'center' as const,
+    },
+    statusStepTextCurrent: {
+      color: theme.colors.textInverse,
+      fontWeight: theme.fontWeight.bold,
+    },
+    statusStepTextCompleted: {
+        color: theme.colors.textSecondary,
     },
   });
 }
