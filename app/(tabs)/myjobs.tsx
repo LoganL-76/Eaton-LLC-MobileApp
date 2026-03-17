@@ -3,50 +3,74 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
+import { api } from '../../services/api';
 
-const MOCK_JOBS = [
-  {
-    id: 1,
-    job_number: 'J-001',
-    project: 'Highway 14 Expansion',
-    job_date: '2026-03-05',
-    shift_start: '07:00',
-    material: 'Sand',
-    loading_address: { city: 'Mankato' },
-  },
-  {
-    id: 2,
-    job_number: 'J-002',
-    project: 'Bridge Repair',
-    job_date: '2026-03-06',
-    shift_start: '06:00',
-    material: 'Gravel',
-    loading_address: { city: 'Rochester' },
-  },
-];
+
+//create appropriate types for the job data
+type Address = {
+  id: number;
+  full_address: string;
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+};
+
+type Job = {
+  id: number;
+  job_number: string;
+  project: string;
+  job_date: string; // YYYY-MM-DD format
+  shift_start: string; // HH:MM format
+  material: string;
+  job_foreman_name: string;
+  job_foreman_contact: string;
+  additional_notes: string;
+  is_backhaul_enabled: boolean;
+  loading_address: number;
+  unloading_address: number;
+  loading_address_info: Address;
+  unloading_address_info: Address;
+  backhaul_loading_address_info: Address | null;
+  backhaul_unloading_address_info: Address | null;
+};
+
+
 
 export default function MyJobsScreen() {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
 
-  const [loading, setLoading] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [error, setError] = useState<string | null>(null);
 
+
+const fetchJobs = async () => {
+  try {
+    const res = await api.get('/drivers/me/jobs/');
+    setJobs(res.data);
+    setLastRefresh(new Date());
+    setError(null); // Clear any previous errors
+  } catch (err: any) {
+    setError(err.message ?? 'Failed to load jobs.');
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
+
+// useEffect to fetch jobs when the component mounts
+// useEffect cannot be async, so we define an async function inside it and call it immediately
   useEffect(() => {
-    setTimeout(() => { 
-        setLoading(false);
-        setLastRefresh(new Date());
-        }, 
-        1000);
-  }, []);
+    fetchJobs();
+}, []);
 
- // Simulate pull-to-refresh by showing loading indicator for 1 second
   const handleRefresh = async () => {
     setRefreshing(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setLastRefresh(new Date());
-    setRefreshing(false);
+    await fetchJobs();
   };
 
   return (
@@ -64,18 +88,26 @@ export default function MyJobsScreen() {
         color={theme.colors.primary} 
         style={{ marginTop: 60 }} 
       />
+    ) : error ? (
+      <View style={styles.errorContainer}>
+        <MaterialIcons name="wifi-off" size={32} color={theme.colors.error} />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity onPress={fetchJobs}>
+          <Text style={styles.retryText}>Tap to retry</Text>
+        </TouchableOpacity>
+      </View>
     ) : (
     <FlatList
       style={{ backgroundColor: theme.colors.background }}
       contentContainerStyle={styles.container}
-      data={MOCK_JOBS}
+      data={jobs}
       keyExtractor={(item) => item.id.toString()}
       renderItem={({ item }) => (
         <TouchableOpacity style={styles.card} onPress= {() => router.push({ pathname: '/job/[id]', params: { id: item.id } })}>
           <Text style={styles.jobNumber}>{item.job_number}</Text>
           <Text style={styles.project}>{item.project}</Text>
           <Text style={styles.detail}>{item.job_date} · {item.shift_start}</Text>
-          <Text style={styles.detail}>{item.material} · {item.loading_address.city}</Text>
+          <Text style={styles.detail}>{item.material} · {item.loading_address_info.city}</Text>
         </TouchableOpacity>
       )}
       ListEmptyComponent={<Text style={styles.empty}>No jobs assigned yet</Text>}
@@ -135,6 +167,23 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     lastRefreshText: {
       fontSize: theme.fontSize.sm,
       color: theme.colors.textSecondary,
+    },
+    errorContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.sm,
+      padding: theme.spacing.md,
+    },
+    errorText: {
+      fontSize: theme.fontSize.sm,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    retryText: {
+      fontSize: theme.fontSize.sm,
+      color: theme.colors.primary,
+      textDecorationLine: 'underline',
     },
   });
 }
