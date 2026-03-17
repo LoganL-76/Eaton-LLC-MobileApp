@@ -56,8 +56,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const payload = parseJwtPayload(access);
             if (payload?.user_id) {
                 const driversResponse = await api.get('/drivers/');
-                const drivers: { user: number }[] = driversResponse.data;
-                const isDriver = drivers.some((d) => d.user === payload.user_id);
+                // Handle both flat arrays and DRF paginated responses ({ results: [...] })
+                const raw = driversResponse.data;
+                const drivers: { user: number | string }[] = Array.isArray(raw) ? raw : (raw.results ?? []);
+                // Use Number() coercion to guard against string/number type mismatch
+                const isDriver = drivers.some((d) => Number(d.user) === Number(payload.user_id));
 
                 if (!isDriver) {
                     await SecureStore.deleteItemAsync(TOKEN_KEYS.access);
