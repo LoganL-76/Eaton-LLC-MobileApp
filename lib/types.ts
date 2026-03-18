@@ -1,10 +1,15 @@
 export type Address = {
     id: number;
-    full_address: string;
-    street: string;
+    street_address: string;
     city: string;
     state: string;
-    zip: string;
+    zip_code: string;
+    country: string;
+    location_name: string;
+    location_type: string;
+    latitude: string;
+    longitude: string;
+
 };
 
 export type DriverTruckInfo = {

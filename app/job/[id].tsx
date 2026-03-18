@@ -28,7 +28,6 @@ export default function JobDetailScreen() {
       const res = await api.get(`/jobs/${id}/`);
       setJob(res.data);
       console.log('Adress info: ', res.data.loading_address_info);
-      console.log('driver ', res.data.driver_assignments[0]?.driver_truck_info);
       setStatus(res.data.status ?? 'assigned');
       setError(null);
     } catch (err: any) {
@@ -80,12 +79,14 @@ export default function JobDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Addresses</Text>
           <Text style={styles.label}>Loading</Text>
-          <TouchableOpacity onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(job.loading_address_info.full_address)}`)}>
-            <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.loading_address_info.full_address}</Text>
+          <TouchableOpacity onPress={() => Linking.openURL(`https://maps.google.com/?q=${job.loading_address_info.latitude},${job.loading_address_info.longitude }`)}>
+            <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.loading_address_info.location_name}</Text>
+            <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.loading_address_info.street_address}, {job.loading_address_info.city}, {job.loading_address_info.state}</Text>
           </TouchableOpacity>
           <Text style={styles.label}>Unloading</Text>
-          <TouchableOpacity onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(job.unloading_address_info.full_address)}`)}>
-            <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.unloading_address_info.full_address}</Text>
+          <TouchableOpacity onPress={() => Linking.openURL(`https://maps.google.com/?q=${job.unloading_address_info.latitude},${job.unloading_address_info.longitude }`)}>
+            <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.unloading_address_info.location_name}</Text>
+            <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.unloading_address_info.street_address}, {job.unloading_address_info.city}, {job.unloading_address_info.state}</Text>
           </TouchableOpacity>
         </View>
 
