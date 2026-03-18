@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types';
 import { api } from '../../services/api';
@@ -27,7 +27,6 @@ export default function JobDetailScreen() {
     try {
       const res = await api.get(`/jobs/${id}/`);
       setJob(res.data);
-      console.log('Adress info: ', res.data.loading_address_info);
       setStatus(res.data.status ?? 'assigned');
       setError(null);
     } catch (err: any) {
@@ -62,6 +61,19 @@ export default function JobDetailScreen() {
 
 
   const truck = job.driver_assignments[0]?.driver_truck_info;
+  
+  // Pop up to choose maps app when address is tapped
+  const openMaps = (latitude: string, longitude: string, label: string) => {
+    Alert.alert(
+      'Open in Maps',
+      label,
+      [
+        { text: 'Google Maps', onPress: () => Linking.openURL(`https://maps.google.com/?q=${latitude},${longitude}`) },
+        { text: 'Apple Maps', onPress: () => Linking.openURL(`maps://?q=${latitude},${longitude}`) },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
 
   return (
     <ScrollView style={{ backgroundColor: theme.colors.background }}>
@@ -79,12 +91,12 @@ export default function JobDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Addresses</Text>
           <Text style={styles.label}>Loading</Text>
-          <TouchableOpacity onPress={() => Linking.openURL(`https://maps.google.com/?q=${job.loading_address_info.latitude},${job.loading_address_info.longitude }`)}>
+          <TouchableOpacity onPress={() => openMaps(job.loading_address_info.latitude, job.loading_address_info.longitude, job.loading_address_info.location_name)}>
             <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.loading_address_info.location_name}</Text>
             <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.loading_address_info.street_address}, {job.loading_address_info.city}, {job.loading_address_info.state}</Text>
           </TouchableOpacity>
           <Text style={styles.label}>Unloading</Text>
-          <TouchableOpacity onPress={() => Linking.openURL(`https://maps.google.com/?q=${job.unloading_address_info.latitude},${job.unloading_address_info.longitude }`)}>
+          <TouchableOpacity onPress={() => openMaps(job.unloading_address_info.latitude, job.unloading_address_info.longitude, job.unloading_address_info.location_name)}>
             <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.unloading_address_info.location_name}</Text>
             <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.unloading_address_info.street_address}, {job.unloading_address_info.city}, {job.unloading_address_info.state}</Text>
           </TouchableOpacity>
