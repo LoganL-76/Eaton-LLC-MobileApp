@@ -3,39 +3,8 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
+import { Job } from '../../lib/types'; // Importing Job and Address types from lib/types.ts
 import { api } from '../../services/api';
-
-
-//create appropriate types for the job data
-type Address = {
-  id: number;
-  full_address: string;
-  street: string;
-  city: string;
-  state: string;
-  zip: string;
-};
-
-type Job = {
-  id: number;
-  job_number: string;
-  project: string;
-  job_date: string; // YYYY-MM-DD format
-  shift_start: string; // HH:MM format
-  material: string;
-  job_foreman_name: string;
-  job_foreman_contact: string;
-  additional_notes: string;
-  is_backhaul_enabled: boolean;
-  loading_address: number;
-  unloading_address: number;
-  loading_address_info: Address;
-  unloading_address_info: Address;
-  backhaul_loading_address_info: Address | null;
-  backhaul_unloading_address_info: Address | null;
-};
-
-
 
 export default function MyJobsScreen() {
   const { theme } = useTheme();
