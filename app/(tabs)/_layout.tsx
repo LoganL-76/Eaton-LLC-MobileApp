@@ -20,6 +20,7 @@ export default function TabLayout() {
                 tabBarStyle: { backgroundColor: theme.colors.background, borderTopColor: theme.colors.border },
                 tabBarActiveTintColor: theme.colors.primary,
                 tabBarInactiveTintColor: theme.colors.textSecondary,
+                headerTitleAlign: 'center',
             }}
         >
             <Tabs.Screen
