@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // derive types from backend API
@@ -25,7 +25,7 @@ export default function JobDetailScreen() {
   };
   
   // endpoint to fetch job details by ID, including addresses and driver info
-  const fetchJob = async () => {
+  const fetchJob = useCallback(async () => {
     try {
       const res = await api.get(`/jobs/${id}/`);
       setJob(res.data);
@@ -36,11 +36,21 @@ export default function JobDetailScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchJob();
   }, [id]);
+
+  // TODO: implement status update endpoint in backend and call it here when status changes
+  const updateStatus = async (newStatus: string) => {
+    setStatus(newStatus);
+    try {
+      await api.patch(`/jobs/${id}/`, { status: newStatus });
+    } catch {
+      // endpoint not yet available
+    }
+  };
 
   if (loading) {
     return (
