@@ -19,6 +19,7 @@ export const api = axios.create({
     },
 });
 //REQUEST INTERCEPTOR
+// grabs token from secure storage and adds it to the Authorization header of every request
 api.interceptors.request.use(async (config) => {
     const token = await SecureStore.getItemAsync(TOKEN_KEYS.access);
 

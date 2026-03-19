@@ -20,6 +20,7 @@ export default function TabLayout() {
                 tabBarStyle: { backgroundColor: theme.colors.background, borderTopColor: theme.colors.border },
                 tabBarActiveTintColor: theme.colors.primary,
                 tabBarInactiveTintColor: theme.colors.textSecondary,
+                headerTitleAlign: 'center',
             }}
         >
             <Tabs.Screen
@@ -37,10 +38,10 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
-                name = "myprofile"
+                name = "more"
                 options = {{
-                    title: "My Profile",
-                    tabBarIcon: ({ color }) => <MaterialIcons name="person" size={24} color={color} />
+                    title: "More",
+                    tabBarIcon: ({ color }) => <MaterialIcons name="menu" size={24} color={color} />
                 }}
             />
         </Tabs>

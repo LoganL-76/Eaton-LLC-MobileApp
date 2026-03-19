@@ -243,7 +243,7 @@ export default function ForgotPasswordScreen() {
                 onPress={() => { setStep(2); setError(''); }}
               >
                 <Text style={styles.linkText}>
-                  Didn't get the code? <Text style={styles.linkBold}>Go back</Text>
+                 { "Didn't get the code?" } <Text style={styles.linkBold}>Go back</Text>
                 </Text>
               </TouchableOpacity>
             </View>
