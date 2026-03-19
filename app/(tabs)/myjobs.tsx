@@ -6,6 +6,10 @@ import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // Importing Job and Address types from lib/types.ts
 import { api } from '../../services/api';
 
+// This screen displays a list of jobs assigned to the logged-in driver. 
+// It fetches the jobs from the backend API and shows key details like job number, project, date, material, and loading city. 
+// Users can tap on a job to see more details on a separate screen. 
+// The screen also includes pull-to-refresh functionality and error handling for network issues.
 export default function MyJobsScreen() {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
@@ -16,26 +20,25 @@ export default function MyJobsScreen() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [error, setError] = useState<string | null>(null);
 
-
-const fetchJobs = async () => {
-  try {
-    const res = await api.get('/drivers/me/jobs/');
-    setJobs(res.data);
-    setLastRefresh(new Date());
-    setError(null); // Clear any previous errors
-  } catch (err: any) {
+  const fetchJobs = async () => {
+    try {
+      const res = await api.get('/drivers/me/jobs/');
+      setJobs(res.data);
+      setLastRefresh(new Date());
+      setError(null); // Clear any previous errors
+    } catch (err: any) {
     setError(err.message ?? 'Failed to load jobs.');
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-};
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
 // useEffect to fetch jobs when the component mounts
 // useEffect cannot be async, so we define an async function inside it and call it immediately
   useEffect(() => {
     fetchJobs();
-}, []);
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);

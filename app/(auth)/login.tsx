@@ -5,6 +5,9 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, Te
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../lib/ThemeContext';
 
+// This screen allows users to log in with their credentials. 
+// It uses the useAuth hook to handle authentication and redirects to the main app screen on success. 
+// It also includes error handling and loading states for better UX.
 export default function LoginScreen() {
   const { theme, isDark } = useTheme();
   const { login } = useAuth();

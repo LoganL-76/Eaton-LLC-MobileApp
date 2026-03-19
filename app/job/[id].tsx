@@ -2,15 +2,16 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
-import { Job } from '../../lib/types';
+import { Job } from '../../lib/types'; // derive types from backend API
 import { api } from '../../services/api';
 
+// This screen shows detailed information about a specific job, including addresses, foreman info, truck info, and allows updating job status. 
+// It fetches job details from the backend using the job ID from the route params. 
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams();
   const { theme } = useTheme();
   const styles = makeStyles(theme);
   
-  // 
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +23,8 @@ export default function JobDetailScreen() {
     on_site: 'On Site',
     completed: 'Completed'
   };
-
+  
+  // endpoint to fetch job details by ID, including addresses and driver info
   const fetchJob = async () => {
     try {
       const res = await api.get(`/jobs/${id}/`);
@@ -59,9 +61,8 @@ export default function JobDetailScreen() {
     );
   }
 
-
   const truck = job.driver_assignments[0]?.driver_truck_info;
-  
+
   // Pop up to choose maps app when address is tapped
   const openMaps = (latitude: string, longitude: string, label: string) => {
     Alert.alert(

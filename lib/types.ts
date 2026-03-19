@@ -43,3 +43,17 @@ export type DriverAssignment = {
     id: number;
     driver_truck_info: DriverTruckInfo;
 };
+
+export type Driver = {
+    id: number;
+    name: string;
+    email_address: string;
+    phone_number: string;
+    address: string;
+    driver_license: string;
+    truck_count: number;
+    contact_info: string;
+    user: number;
+    operator: number;
+    created_at: string;
+}
