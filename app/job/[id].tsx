@@ -1,7 +1,8 @@
+import { useActionSheet } from '@expo/react-native-action-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // derive types from backend API
@@ -13,12 +14,12 @@ export default function JobDetailScreen() {
   const { id } = useLocalSearchParams();
   const { theme } = useTheme();
   const styles = makeStyles(theme);
+  const { showActionSheetWithOptions } = useActionSheet();
   
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState('assigned')
-  const STATUS_STEPS = ['assigned', 'en_route', 'on_site', 'completed'];
   const STATUS_LABELS = {
     assigned: 'Assigned',
     en_route: 'En Route',
@@ -27,7 +28,7 @@ export default function JobDetailScreen() {
   };
   
   // endpoint to fetch job details by ID, including addresses and driver info
-  const fetchJob = useCallback(async () => {
+  const fetchJob = async () => {
     try {
       const res = await api.get(`/jobs/${id}/`);
       setJob(res.data);
@@ -38,7 +39,7 @@ export default function JobDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  };
 
   useEffect(() => {
     fetchJob();
@@ -59,6 +60,21 @@ export default function JobDetailScreen() {
     }
   };
 
+  // Opens action sheet to update job status
+  const openStatusPicker = () => {
+    const options = ['En Route', 'On Site', 'Completed', 'Cancel'];
+    const cancelButtonIndex = 3;
+
+    showActionSheetWithOptions(
+      { options, cancelButtonIndex },
+      (selectedIndex) => {
+        if (selectedIndex === undefined || selectedIndex === cancelButtonIndex) return;
+        const values = ['en_route', 'on_site', 'completed'];
+        updateStatus(values[selectedIndex]);
+      }
+    );
+  };
+  
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
@@ -140,6 +156,34 @@ export default function JobDetailScreen() {
           </View>
         </View>
 
+        {/* Status */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Status</Text>
+          <TouchableOpacity onPress={openStatusPicker} style={styles.statusButton}>
+            <Text style={styles.statusButtonText}>
+              {STATUS_LABELS[status as keyof typeof STATUS_LABELS]}
+            </Text>
+            <MaterialIcons name="expand-more" size={20} color={theme.colors.primary} />
+          </TouchableOpacity>
+
+          <View style={styles.statusTimeline}>
+            {[
+              { label: 'Assigned', time: job.driver_assignments[0]?.assigned_at },
+              { label: 'En Route', time: job.driver_assignments[0]?.started_at },
+              // TODO: backend needs to support these timestamps for accurate timeline
+              { label: 'On Site', time: null },
+              { label: 'Completed', time: job.driver_assignments[0]?.completed_at },
+            ].map(({ label, time }) => (
+              <View key={label} style={styles.timelineRow}>
+                <Text style={styles.timelineLabel}>{label}</Text>
+                <Text style={styles.timelineValue}>
+                  {time ? new Date(time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--'}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
         {/* Foreman */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Foreman</Text>
@@ -160,38 +204,6 @@ export default function JobDetailScreen() {
           </View>
         ) : null}
 
-        {/* Status */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Status</Text>
-          <View style={styles.statusRow}>
-            {STATUS_STEPS.map((step, index) => {
-              const currentIndex = STATUS_STEPS.indexOf(status);
-              const isCompleted = index < currentIndex;
-              const isCurrent = index === currentIndex;
-              const isNext = index === currentIndex + 1;
-              return (
-                <TouchableOpacity
-                  key={step}
-                  style={[
-                    styles.statusStep,
-                    isCurrent && styles.statusStepCurrent,
-                    isCompleted && styles.statusStepCompleted
-                  ]}
-                  onPress={() => { if (isNext) updateStatus(step); }}
-                  disabled={!isNext}
-                >
-                  <Text style={[
-                    styles.statusStepText,
-                    isCurrent && styles.statusStepTextCurrent,
-                    isCompleted && styles.statusStepTextCompleted
-                  ] as any}>
-                    {STATUS_LABELS[step as keyof typeof STATUS_LABELS]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-         </View>
-        </View>
 
       </View>
     </ScrollView>
@@ -238,38 +250,37 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
       fontSize: theme.fontSize.md,
       color: theme.colors.textSecondary,
     },
-    statusRow: {
-        flexDirection: 'row',
-        gap: theme.spacing.xs,
+    statusButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      borderRadius: theme.borderRadius.md,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
     },
-    statusStep: {
-        paddingVertical: theme.spacing.sm,
-        flex: 1,
-        borderRadius: theme.borderRadius.md,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        alignItems: 'center',
+    statusButtonText: {
+      fontSize: theme.fontSize.md,
+      color: theme.colors.primary,
+      fontWeight: theme.fontWeight.semibold,
     },
-    statusStepCurrent: {
-        borderColor: theme.colors.primary,
-        backgroundColor: theme.colors.primary,
+    statusTimeline: {
+      gap: theme.spacing.sm,
+      marginTop: theme.spacing.md,
     },
-    statusStepCompleted: {
-        borderColor: theme.colors.primary,
-        backgroundColor: theme.colors.primary,
+    timelineRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
     },
-    statusStepText: {
-      fontSize: theme.fontSize.xs,
+    timelineLabel: {
+      fontSize: theme.fontSize.sm,
       color: theme.colors.textSecondary,
-      fontWeight: theme.fontWeight.medium,
-      textAlign: 'center' as const,
     },
-    statusStepTextCurrent: {
-      color: theme.colors.textInverse,
-      fontWeight: theme.fontWeight.bold,
-    },
-    statusStepTextCompleted: {
-        color: theme.colors.textSecondary,
+    timelineValue: {
+      fontSize: theme.fontSize.sm,
+      color: theme.colors.textSecondary,
     },
   });
 }

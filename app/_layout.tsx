@@ -1,3 +1,4 @@
+import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import { Stack } from "expo-router";
 import { AuthProvider } from '../contexts/AuthContext';
 import { ThemeProvider } from '../lib/ThemeContext';
@@ -5,14 +6,16 @@ import { ThemeProvider } from '../lib/ThemeContext';
 export default function RootLayout() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="job/[id]" options={{ title: 'Job Details', headerShown: true }} />
-        <Stack.Screen name="more/profiledetails" options={{ title: 'My Profile', headerShown: true }} />
-      </Stack>
-      </AuthProvider>
+      <ActionSheetProvider>
+        <AuthProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="job/[id]" options={{ title: 'Job Details', headerShown: true }} />
+          <Stack.Screen name="more/profiledetails" options={{ title: 'My Profile', headerShown: true }} />
+        </Stack>
+        </AuthProvider>
+      </ActionSheetProvider>
     </ThemeProvider>
   );
 }
