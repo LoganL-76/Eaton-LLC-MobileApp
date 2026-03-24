@@ -1,3 +1,5 @@
+import { MaterialIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -86,6 +88,12 @@ export default function JobDetailScreen() {
     );
   };
 
+  // Helper function to copy addresses to clipboard
+  const copyAddress = async (address: string) => {
+    await Clipboard.setStringAsync(address);
+    Alert.alert('Address Copied', address);
+  };
+
   return (
     <ScrollView style={{ backgroundColor: theme.colors.background }}>
       <View style={styles.container}>
@@ -101,16 +109,30 @@ export default function JobDetailScreen() {
         {/* Addresses */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Addresses</Text>
+
+          {/* Loading Address */}
           <Text style={styles.label}>Loading</Text>
-          <TouchableOpacity onPress={() => openMaps(job.loading_address_info.latitude, job.loading_address_info.longitude, job.loading_address_info.location_name)}>
-            <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.loading_address_info.location_name}</Text>
-            <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.loading_address_info.street_address}, {job.loading_address_info.city}, {job.loading_address_info.state}</Text>
-          </TouchableOpacity>
-          <Text style={styles.label}>Unloading</Text>
-          <TouchableOpacity onPress={() => openMaps(job.unloading_address_info.latitude, job.unloading_address_info.longitude, job.unloading_address_info.location_name)}>
-            <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.unloading_address_info.location_name}</Text>
-            <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.unloading_address_info.street_address}, {job.unloading_address_info.city}, {job.unloading_address_info.state}</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => openMaps(job.loading_address_info.latitude, job.loading_address_info.longitude, job.loading_address_info.location_name)}>
+              <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.loading_address_info.location_name}</Text>
+              <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.loading_address_info.street_address}, {job.loading_address_info.city}, {job.loading_address_info.state}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginLeft: 12 }} onPress={() => copyAddress(`${job.loading_address_info.street_address}, ${job.loading_address_info.city}, ${job.loading_address_info.state}`)}>
+              <MaterialIcons name="content-copy" size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Unloading Address */}
+          <Text style={styles.label}>Unloading1</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => openMaps(job.unloading_address_info.latitude, job.unloading_address_info.longitude, job.unloading_address_info.location_name)}>
+              <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.unloading_address_info.location_name}</Text>
+              <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.unloading_address_info.street_address}, {job.unloading_address_info.city}, {job.unloading_address_info.state}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginLeft: 12 }} onPress={() => copyAddress(`${job.unloading_address_info.street_address}, ${job.unloading_address_info.city}, ${job.unloading_address_info.state}`)}>
+              <MaterialIcons name="content-copy" size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Foreman */}
