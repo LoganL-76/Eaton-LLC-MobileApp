@@ -31,7 +31,7 @@ export default function JobDetailScreen() {
     try {
       const res = await api.get(`/jobs/${id}/`);
       setJob(res.data);
-      setStatus(res.data.status ?? 'assigned');
+      setStatus(res.data.driver_assignments[0]?.status ?? 'assigned');
       setError(null);
     } catch (err: any) {
       setError(err.message ?? 'Failed to load job details.');
@@ -44,13 +44,18 @@ export default function JobDetailScreen() {
     fetchJob();
   }, [id]);
 
-  // TODO: implement status update endpoint in backend and call it here when status changes
+  // grabs status through driver assignmets
   const updateStatus = async (newStatus: string) => {
+    const assignmentId = job?.driver_assignments[0]?.id;
+    if (!assignmentId) return;
+
+    const previousStatus = status;
     setStatus(newStatus);
     try {
-      await api.patch(`/jobs/${id}/`, { status: newStatus });
-    } catch {
-      // endpoint not yet available
+      await api.patch(`/job-driver-assignments/${assignmentId}/status/`, { status: newStatus });
+    } catch (err: any){
+      setStatus(previousStatus);
+      Alert.alert('Failed to update status', err.message ?? 'An error occurred while updating the job status. Please try again.');
     }
   };
 
@@ -123,7 +128,7 @@ export default function JobDetailScreen() {
           </View>
 
           {/* Unloading Address */}
-          <Text style={styles.label}>Unloading1</Text>
+          <Text style={styles.label}>Unloading</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <TouchableOpacity style={{ flex: 1 }} onPress={() => openMaps(job.unloading_address_info.latitude, job.unloading_address_info.longitude, job.unloading_address_info.location_name)}>
               <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.unloading_address_info.location_name}</Text>
@@ -172,7 +177,7 @@ export default function JobDetailScreen() {
                     isCurrent && styles.statusStepCurrent,
                     isCompleted && styles.statusStepCompleted
                   ]}
-                  onPress={() => { if (isNext) setStatus(step); }}
+                  onPress={() => { if (isNext) updateStatus(step); }}
                   disabled={!isNext}
                 >
                   <Text style={[
