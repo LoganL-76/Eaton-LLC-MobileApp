@@ -2,7 +2,7 @@ import { useActionSheet } from '@expo/react-native-action-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // derive types from backend API
@@ -28,7 +28,7 @@ export default function JobDetailScreen() {
   };
   
   // endpoint to fetch job details by ID, including addresses and driver info
-  const fetchJob = async () => {
+  const fetchJob = useCallback( async () => {
     try {
       const res = await api.get(`/jobs/${id}/`);
       setJob(res.data);
@@ -39,11 +39,11 @@ export default function JobDetailScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchJob();
-  }, [id]);
+  }, [id, fetchJob]);
 
   // grabs status through driver assignmets
   const updateStatus = async (newStatus: string) => {

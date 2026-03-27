@@ -11,7 +11,7 @@ export default function NotificationsScreen() {
             <View style={styles.emptyState}>
                 <MaterialIcons name="notifications-none" size={64} color={theme.colors.textSecondary} />
                 <Text style={styles.emptyTitle}>No notifications yet</Text>
-                <Text style={styles.emptySubtext}>We'll let you know when there are updates about your jobs</Text>
+                <Text style={styles.emptySubtext}>We&apos;ll let you know when there are updates about your jobs</Text>
             </View>
         </View>
     );
