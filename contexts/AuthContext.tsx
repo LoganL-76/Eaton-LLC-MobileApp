@@ -47,6 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const response = await api.post('/login/', { username, password });
             const { access, refresh } = response.data;
 
+            await SecureStore.setItemAsync(TOKEN_KEYS.access, access);
+            await SecureStore.setItemAsync(TOKEN_KEYS.refresh, refresh);
+
             // Client-side driver role gate.
             // Decode the JWT to get user_id, then verify a Driver record exists for that user.
             // Note: backend needs IsAuthenticated permission class for production enforcement.
@@ -57,12 +60,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const isDriver = drivers.some((d) => d.user === payload.user_id);
 
                 if (!isDriver) {
+                    await SecureStore.deleteItemAsync(TOKEN_KEYS.access);
+                    await SecureStore.deleteItemAsync(TOKEN_KEYS.refresh);
                     return { error: 'Access denied. This app is for drivers only.' };
                 }
             }
-
-            await SecureStore.setItemAsync(TOKEN_KEYS.access, access);
-            await SecureStore.setItemAsync(TOKEN_KEYS.refresh, refresh);
 
             setIsAuthenticated(true);
             return { error: null };
