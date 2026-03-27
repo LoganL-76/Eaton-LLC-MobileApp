@@ -42,6 +42,11 @@ export type Job = {
 export type DriverAssignment = {
     id: number;
     driver_truck_info: DriverTruckInfo;
+    status: string;
+    started_at: string | null; // ISO 8601 format or null
+    completed_at: string | null; 
+    assigned_at: string;
+    unassigned_at: string | null; 
 };
 
 export type Driver = {

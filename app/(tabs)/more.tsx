@@ -26,6 +26,11 @@ export default function MoreScreen() {
                 <Text style={styles.rowLabel}>My Profile</Text>
                 <Text style={styles.rowChevron}>›</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/more/schedule')}>
+                <MaterialIcons name="calendar-today" size={20} color={theme.colors.textSecondary} style={{ marginRight: theme.spacing.sm }} />
+                <Text style={styles.rowLabel}>My Schedule</Text>
+                <Text style={styles.rowChevron}>›</Text>
+            </TouchableOpacity>
 
             <Text style={styles.sectionLabel}>PREFERENCES</Text>
             <View style={styles.row}>
