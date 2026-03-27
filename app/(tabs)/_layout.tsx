@@ -31,10 +31,10 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
-                name="schedule"
+                name="notifications"
                 options = {{
-                    title: "Schedule",
-                    tabBarIcon: ({ color }) => <MaterialIcons name="calendar-today" size={24} color={color} />
+                    title: "Notifications",
+                    tabBarIcon: ({ color }) => <MaterialIcons name="notifications" size={24} color={color} />
                 }}
             />
             <Tabs.Screen
