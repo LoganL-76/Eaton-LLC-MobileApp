@@ -1,62 +1,84 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
+import NetInfo from '@react-native-community/netinfo';
+import { useQuery } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { enqueueAction } from '../../lib/offlineQueue';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // derive types from backend API
 import { api } from '../../services/api';
 
 // This screen shows detailed information about a specific job, including addresses, foreman info, truck info, and allows updating job status. 
-// It fetches job details from the backend using the job ID from the route params. 
+// It fetches job details from the backend using the job ID from the route params.
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams();
   const { theme } = useTheme();
   const styles = makeStyles(theme);
   const { showActionSheetWithOptions } = useActionSheet();
   
-  const [job, setJob] = useState<Job | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState('assigned')
+  // useQuery cahces each job individually by its ID
+  // Opening a job detail while offline will show the last cached version automatically
+  const { data: job, isLoading: loading, error, refetch: fetchJob } = useQuery({
+    queryKey: ['job', id],
+    queryFn: async () => {
+      const res = await api.get(`/jobs/${id}/`);
+      return res.data as Job;
+    }
+  });
+  
+  const [status, setStatus] = useState(
+    job?.driver_assignments[0]?.status ?? 'assigned'
+  );
   const STATUS_LABELS = {
     assigned: 'Assigned',
     en_route: 'En Route',
     on_site: 'On Site',
     completed: 'Completed'
   };
-  
-  // endpoint to fetch job details by ID, including addresses and driver info
-  const fetchJob = useCallback( async () => {
-    try {
-      const res = await api.get(`/jobs/${id}/`);
-      setJob(res.data);
-      setStatus(res.data.driver_assignments[0]?.status ?? 'assigned');
-      setError(null);
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to load job details.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
 
+  // Sync stataus whenever React Query delivers fresh job data from cache or network
   useEffect(() => {
-    fetchJob();
-  }, [id, fetchJob]);
+    if (job?.driver_assignments[0]?.status) {
+      setStatus(job.driver_assignments[0].status);
+    }
+  }, [job]);
+
 
   // grabs status through driver assignmets
   const updateStatus = async (newStatus: string) => {
     const assignmentId = job?.driver_assignments[0]?.id;
     if (!assignmentId) return;
 
+    // always update UI immediately so the driver gets instant feedback
+    // 'Optimistic update' - we assume success and roll back if the API call fails
     const previousStatus = status;
     setStatus(newStatus);
+
+    // Check connectivity before deciding whether to call the API or queue the action
+    const { isConnected } = await NetInfo.fetch();
+
+    if (!isConnected) {
+      // No connection - save the action locally and return
+      await enqueueAction({
+        type: 'status_update',
+        assignmentId, 
+        status: newStatus,
+      });
+      return;
+    }
+    // Online - try to update immediately, but roll back if it fails (e.g. server error, or connection drops mid-request)
     try {
       await api.patch(`/job-driver-assignments/${assignmentId}/status/`, { status: newStatus });
     } catch (err: any){
+      // Server rejected it - roll back the optimistic update and show an error
       setStatus(previousStatus);
-      Alert.alert('Failed to update status', err.message ?? 'An error occurred while updating the job status. Please try again.');
+      Alert.alert(
+        'Failed to update status',
+         err.message ?? 'An error occurred while updating the job status. Please try again.'
+      );
     }
   };
 
@@ -86,8 +108,8 @@ export default function JobDetailScreen() {
   if (error || !job) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background, gap: 12 }}>
-        <Text style={{ color: theme.colors.textSecondary }}>{error ?? 'Job not found.'}</Text>
-        <TouchableOpacity onPress={fetchJob}>
+        <Text style={{ color: theme.colors.textSecondary }}>{(error as any)?.message ?? 'Job not found.'}</Text>
+        <TouchableOpacity onPress={() => fetchJob()}>
           <Text style={{ color: theme.colors.primary, textDecorationLine: 'underline' }}>Tap to retry</Text>
         </TouchableOpacity>
       </View>

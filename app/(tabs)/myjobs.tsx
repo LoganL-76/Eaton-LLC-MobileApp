@@ -1,6 +1,6 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // Importing Job and Address types from lib/types.ts
@@ -10,51 +10,39 @@ import { api } from '../../services/api';
 // It fetches the jobs from the backend API and shows key details like job number, project, date, material, and loading city. 
 // Users can tap on a job to see more details on a separate screen. 
 // The screen also includes pull-to-refresh functionality and error handling for network issues.
+
+export async function fetchJobs(): Promise<Job[]> {
+  const res = await api.get('/drivers/me/jobs/');
+  return res.data;
+}
+
 export default function MyJobsScreen() {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
-
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchJobs = async () => {
-    try {
-      const res = await api.get('/drivers/me/jobs/');
-      setJobs(res.data);
-      setLastRefresh(new Date());
-      setError(null); // Clear any previous errors
-    } catch (err: any) {
-    setError(err.message ?? 'Failed to load jobs.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-// useEffect to fetch jobs when the component mounts
-// useEffect cannot be async, so we define an async function inside it and call it immediately
-  useEffect(() => {
-    fetchJobs();
-  }, []);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchJobs();
-  };
+  
+  // - on mount: checks cache first, then fetches if stale
+  // - while offline: returns whatever is in the persisted cache automatically
+  // - isRefetching: true when refetching in background, can be used to show a loading indicator without blocking the UI
+  const { data: jobs=[], isLoading, isRefetching, error, refetch } = useQuery({
+    queryKey: ['jobs'],
+    queryFn: fetchJobs,
+  });
 
   return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-    <View style={styles.header}>
-      <Text style={styles.lastRefreshText}>Last Refresh: {lastRefresh.toLocaleTimeString()}</Text>
-      <TouchableOpacity onPress={handleRefresh}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <View style={styles.header}>
+        <Text style={styles.lastRefreshText}>
+          {isRefetching ? 'Refreshing...' : `Last updated: ${new Date().toLocaleTimeString()}`}
+        </Text>
+      <TouchableOpacity onPress={() => refetch()}>
         <MaterialIcons name="refresh" size={24} color={theme.colors.primary} />
       </TouchableOpacity>
     </View>
 
-    {loading ? (
+    {isLoading ? (
+      // isLoading is only true on the very first load with no cached data
+      // If cached data exists (even stale), isLoading will be false and
+      // the cached jobs will render immediately whiel a background refetch runs
       <ActivityIndicator 
         size="large" 
         color={theme.colors.primary} 
@@ -63,8 +51,10 @@ export default function MyJobsScreen() {
     ) : error ? (
       <View style={styles.errorContainer}>
         <MaterialIcons name="wifi-off" size={32} color={theme.colors.error} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={fetchJobs}>
+        <Text style={styles.errorText}>
+          {(error as any).message ?? 'Failed to load jobs'}
+        </Text>
+        <TouchableOpacity onPress={() => refetch()}>
           <Text style={styles.retryText}>Tap to retry</Text>
         </TouchableOpacity>
       </View>
@@ -83,7 +73,11 @@ export default function MyJobsScreen() {
         </TouchableOpacity>
       )}
       ListEmptyComponent={<Text style={styles.empty}>No jobs assigned yet</Text>}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      // refetch() is what pull-to-refresh calls
+      // React Query handles the loading state - no need to manage setRefreshing manually
+      refreshControl= {
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+      }
     />
     )}
     </View>
