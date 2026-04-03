@@ -1,12 +1,11 @@
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
-import { Stack, router } from "expo-router";
-import { AuthProvider } from '../contexts/AuthContext';
-import { ThemeProvider } from '../lib/ThemeContext';
-import React, { useEffect, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import * as Notifications from 'expo-notifications';
-import { api } from '../services/api';
+import { Stack, router } from "expo-router";
+import React, { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { ThemeProvider } from '../lib/ThemeContext';
+import { api } from '../services/api';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
