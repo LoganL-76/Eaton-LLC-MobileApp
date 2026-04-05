@@ -15,6 +15,7 @@ export type QueuedAction = {
     type: 'status_update'; // type of action, can be extended to support more types in the future
     assignmentId: number;
     status: string;
+    expectedStatus: string;
     queuedAt: string; // ISO timestamp of when the action was queued, useful for debugging and ordering
 };
 
