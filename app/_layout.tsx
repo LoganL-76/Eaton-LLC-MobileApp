@@ -1,4 +1,5 @@
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Stack, router } from "expo-router";
 import React, { useEffect, useRef } from 'react';
@@ -20,6 +21,9 @@ function AppInitializer() {
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
   const { isAuthenticated, isLoading } = useAuth();
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    Constants.easConfig?.projectId;
 
   useEffect(() => {
     if (isLoading) return;
@@ -34,8 +38,14 @@ function AppInitializer() {
             return;
           }
 
-          const tokenData = await Notifications.getExpoPushTokenAsync();
+          if (!projectId) {
+            throw new Error('Missing EAS projectId for push notifications.');
+          }
+
+          const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
           const token = tokenData.data;
+
+          console.log('EXPO PUSH TOKEN:', token);
 
           await api.post('/devices/', {
             token: token,
@@ -44,7 +54,10 @@ function AppInitializer() {
 
           console.log('Push token registered with backend');
         } catch (error) {
-          console.log('Error getting push token:', error);
+          console.log(
+            'Error getting push token. Make sure google-services.json is present and Android Firebase/FCM is configured:',
+            error,
+          );
         }
       };
 
