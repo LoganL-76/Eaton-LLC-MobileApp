@@ -2,55 +2,94 @@ import { asyncStoragePersister, queryClient } from "@/lib/queryClient";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import NetInfo from '@react-native-community/netinfo';
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { Stack } from "expo-router";
-import { useEffect, useRef } from "react";
-import { Alert } from 'react-native';
-import { AuthProvider } from '../contexts/AuthContext';
+import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
+import { Stack, router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { getQueue, removeAction } from "../lib/offlineQueue";
 import { ThemeProvider } from '../lib/ThemeContext';
 import { replayQueuedStatusUpdates } from '../lib/statusUpdateSync';
 import { api } from '../services/api';
 
-// RootLayout is the top-level component that wraps the entire app. 
-// It sets up global providers for theming, authentication, and React Query caching. 
-// It also listens for network connectivity changes to trigger syncing of any queued offline actions when the device goes back online.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
+
+function AppInitializer() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const notificationListener = useRef<ReturnType<typeof Notifications.addNotificationReceivedListener> | null>(null);
+  const responseListener = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null);
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (isAuthenticated) {
+      const registerForPushNotifications = async () => {
+        try {
+          const { status } = await Notifications.requestPermissionsAsync();
+          if (status !== 'granted') return;
+          if (!projectId) throw new Error('Missing EAS projectId');
+          const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+          await api.post('/devices/', {
+            token: tokenData.data,
+            platform: Platform.OS === 'ios' ? 'ios' : 'android',
+          });
+        } catch {
+          // Push notifications are non-critical — fail silently
+        }
+      };
+      registerForPushNotifications();
+
+      notificationListener.current = Notifications.addNotificationReceivedListener(() => {
+        // Notification received while foregrounded — setNotificationHandler handles display
+      });
+      responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
+        router.push('/(tabs)/myjobs');
+      });
+    }
+    return () => {
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
+    };
+  }, [isAuthenticated, isLoading, projectId]);
+
+  return null;
+}
+
 export default function RootLayout() {
-  // useRef instead of useState because we don't want a re-render when this changes.
-  // It just tracks whether we're already mid-sync so we don't run two syncs at once
-  // if the connectivity stat flickers on and off quickly.
   const isSyncing = useRef(false);
+  const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(async (state) => {
-      // only attmept a sync when we have a confirmed connection
-      // and sync isn't already running
-      if (!state.isConnected || isSyncing.current) return;
-    
-      const queue = await getQueue();
+      const connected = state.isConnected ?? false;
+      setIsOffline(!connected);
 
-      // nothing queued - no work
+      if (!connected || isSyncing.current) return;
+      const queue = await getQueue();
       if (queue.length === 0) return;
 
       isSyncing.current = true;
-
       try {
         await replayQueuedStatusUpdates(queue, {
-          patchStatus: (assignmentId, payload) => api.patch(
-            `/job-driver-assignments/${assignmentId}/status/`,
-            payload
-          ),
+          patchStatus: (assignmentId, payload) =>
+            api.patch(`/job-driver-assignments/${assignmentId}/status/`, payload),
           removeAction,
           onConflict: async (action) => {
-            // Server explicitly rejected this action - conflict.
-            // In either case, server state wins. Alert driver and move on.
             Alert.alert(
               'Sync Conflict',
-              `This job was updated by dispatch while you were offline. Your queued update was rejected. Please review Job #${action.assignmentId} for the latest status.`
+              `Could not sync update for Job #${action.assignmentId}. It may have been modified by dispatch.`
             );
           },
-          onTransientFailure: (action, error) => {
-            // Network error or server outage - keep the action queued and stop.
-            console.warn(`Failed to sync action ${action.id}:`, (error as any)?.message ?? error);
+          onTransientFailure: (_action, _error) => {
+            // Will retry automatically on next reconnect
           },
           invalidateQueries: async () => {
             await Promise.all([
@@ -60,27 +99,28 @@ export default function RootLayout() {
           },
         });
       } finally {
-        // always release the lock, even if something threw unexpectedly
         isSyncing.current = false;
       }
     });
-
-    // clean up the NetInfo listener when the rooty layout unmounts (should be only when the app closes)
     return unsubscribe;
-  }, []); 
+  }, []);
 
   return (
     <ThemeProvider>
       <PersistQueryClientProvider
         client={queryClient}
-        persistOptions={{ 
-          persister: asyncStoragePersister,
-          maxAge: 1000 * 60 * 60 * 24, // 1 day
-          buster: 'v1', // Change this to invalidate old cache
-        }}
+        persistOptions={{ persister: asyncStoragePersister, maxAge: 1000 * 60 * 60 * 24, buster: 'v1' }}
       >
         <ActionSheetProvider>
           <AuthProvider>
+            <AppInitializer />
+            {isOffline && (
+              <View style={styles.offlineBanner}>
+                <Text style={styles.offlineBannerText}>
+                  No connection — showing cached data
+                </Text>
+              </View>
+            )}
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -94,3 +134,18 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  offlineBanner: {
+    backgroundColor: '#b91c1c',
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  offlineBannerText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+});
