@@ -43,49 +43,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = async (username: string, password: string): Promise<{ error: string | null }> => {
-        try {
-            const response = await api.post('/login/', { username, password });
-            const { access, refresh } = response.data;
+    try {
+        const response = await api.post('/login/', { username, password });
+        const { access, refresh } = response.data;
 
-            await SecureStore.setItemAsync(TOKEN_KEYS.access, access);
-            await SecureStore.setItemAsync(TOKEN_KEYS.refresh, refresh);
+        api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
-            // Client-side driver role gate.
-            // Decode the JWT to get user_id, then verify a Driver record exists for that user.
-            // Note: backend needs IsAuthenticated permission class for production enforcement.
-            const payload = parseJwtPayload(access);
-            if (payload?.user_id) {
-                const driversResponse = await api.get('/drivers/');
-                // Handle both flat arrays and DRF paginated responses ({ results: [...] })
-                const raw = driversResponse.data;
-                const drivers: { user: number | string }[] = Array.isArray(raw) ? raw : (raw.results ?? []);
-                // Use Number() coercion to guard against string/number type mismatch
-                const isDriver = drivers.some((d) => Number(d.user) === Number(payload.user_id));
+        await SecureStore.setItemAsync(TOKEN_KEYS.access, access);
+        await SecureStore.setItemAsync(TOKEN_KEYS.refresh, refresh);
 
-                if (!isDriver) {
-                    await SecureStore.deleteItemAsync(TOKEN_KEYS.access);
-                    await SecureStore.deleteItemAsync(TOKEN_KEYS.refresh);
-                    return { error: 'Access denied. This app is for drivers only.' };
-                }
+        const payload = parseJwtPayload(access);
+        if (payload?.user_id) {
+            const driversResponse = await api.get('/drivers/');
+            const raw = driversResponse.data;
+            const drivers: { user: number | string }[] = Array.isArray(raw) ? raw : (raw.results ?? []);
+            const isDriver = drivers.some((d) => Number(d.user) === Number(payload.user_id));
+
+            if (!isDriver) {
+                await SecureStore.deleteItemAsync(TOKEN_KEYS.access);
+                await SecureStore.deleteItemAsync(TOKEN_KEYS.refresh);
+                delete api.defaults.headers.common['Authorization'];
+                return { error: 'Access denied. This app is for drivers only.' };
             }
-
-            setIsAuthenticated(true);
-            return { error: null };
-
-        } catch (error: unknown) {
-            if (axios.isAxiosError(error)) {
-                // Django returns 401 for bad credentials
-                if (error.response?.status === 401) {
-                    return { error: 'Invalid username or password' };
-                }
-                // Network error (backend not running, no internet, etc)
-                if (!error.response) {
-                    return { error: 'Network error. Please try again.' };
-                }
-            }
-            return { error: 'An unexpected error occurred. Please try again.' };
         }
-    };
+
+        setIsAuthenticated(true);
+        return { error: null };
+    } catch (error: unknown) {
+        if (axios.isAxiosError(error)) {
+            if (error.response?.status === 401) {
+                return { error: 'Invalid username or password' };
+            }
+            if (!error.response) {
+                return { error: 'Network error. Please try again.' };
+            }
+        }
+        return { error: 'An unexpected error occurred. Please try again.' };
+    }
+};
 
     const logout = async () => {
         await SecureStore.deleteItemAsync(TOKEN_KEYS.access);
