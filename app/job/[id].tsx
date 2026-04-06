@@ -7,6 +7,8 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { enqueueAction } from '../../lib/offlineQueue';
+import { isStatusSyncConflict } from '../../lib/syncConflicts';
+import { buildQueuedStatusUpdateAction, buildStatusUpdatePayload } from '../../lib/statusUpdatePayload';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // derive types from backend API
 import { api } from '../../services/api';
@@ -61,20 +63,38 @@ export default function JobDetailScreen() {
     const { isConnected } = await NetInfo.fetch();
 
     if (!isConnected) {
-      // No connection - save the action locally and return
-      await enqueueAction({
-        type: 'status_update',
-        assignmentId, 
-        status: newStatus,
-      });
+      try {
+        // No connection - save the action locally and return.
+        await enqueueAction(
+          buildQueuedStatusUpdateAction(assignmentId, newStatus, previousStatus)
+        );
+      } catch {
+        setStatus(previousStatus);
+        Alert.alert(
+          'Failed to update status',
+          'Unable to save the status update for offline sync. Please try again.'
+        );
+      }
       return;
     }
     // Online - try to update immediately, but roll back if it fails (e.g. server error, or connection drops mid-request)
     try {
-      await api.patch(`/job-driver-assignments/${assignmentId}/status/`, { status: newStatus });
+      await api.patch(
+        `/job-driver-assignments/${assignmentId}/status/`,
+        buildStatusUpdatePayload(newStatus, previousStatus)
+      );
     } catch (err: any){
       // Server rejected it - roll back the optimistic update and show an error
       setStatus(previousStatus);
+      if (isStatusSyncConflict(err)) {
+        Alert.alert(
+          'Sync Conflict',
+          'This job status was already changed by dispatch. Please refresh and review the latest status before trying again.'
+        );
+        await fetchJob();
+        return;
+      }
+
       Alert.alert(
         'Failed to update status',
          err.message ?? 'An error occurred while updating the job status. Please try again.'

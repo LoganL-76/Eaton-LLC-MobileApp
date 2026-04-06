@@ -8,7 +8,8 @@ import { Stack, router } from "expo-router";
 import React, { useEffect, useRef } from 'react';
 import { Alert, Platform } from 'react-native';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { clearQueue, getQueue } from "../lib/offlineQueue";
+import { getQueue, removeAction } from "../lib/offlineQueue";
+import { replayQueuedStatusUpdates } from '../lib/statusUpdateSync';
 import { ThemeProvider } from '../lib/ThemeContext';
 import { api } from '../services/api';
 
@@ -126,37 +127,31 @@ export default function RootLayout() {
       isSyncing.current = true;
 
       try {
-        for (const action of queue) {
-          if (action.type === 'status_update') {
-            try { 
-              await api.patch(
-                `/job-driver-assignments/${action.assignmentId}/status/`,
-                { status: action.status }
-              );
-            } catch (err: any) {
-              const status = err.response?.status;
-
-              if (status === 400 || status === 409) {
-                // Server explicity rejected this action - conflict
-                // 400: the status transition is invalid (e.g. trying to go backwards)
-                // 409: the assingment was already modified by someone else (e.g. dispatcher)
-                // In either case, server state wins. Alert driver and move on.
-                Alert.alert(
-                  'Sync Conflict',
-                  `A status update made while offline was rejected. Please check Job #${action.assignmentId} to confirm the current status.`
-                );
-              } else { 
-                // network error or server outage - just a failure no conflict
-                // leave the action in the queue and retry on the next reconnect
-                console.warn(`Failed to sync action ${action.id}:`, err.message);
-              }
-            }
-          }
-        }
-        
-        // All actions processsed - clear the queue and refresh UI
-        await clearQueue();
-        queryClient.invalidateQueries({ queryKey: ['jobs'] }); 
+        await replayQueuedStatusUpdates(queue, {
+          patchStatus: (assignmentId, payload) => api.patch(
+            `/job-driver-assignments/${assignmentId}/status/`,
+            payload
+          ),
+          removeAction,
+          onConflict: async (action) => {
+            // Server explicitly rejected this action - conflict.
+            // In either case, server state wins. Alert driver and move on.
+            Alert.alert(
+              'Sync Conflict',
+              `This job was updated by dispatch while you were offline. Your queued update was rejected. Please review Job #${action.assignmentId} for the latest status.`
+            );
+          },
+          onTransientFailure: (action, error) => {
+            // Network error or server outage - keep the action queued and stop.
+            console.warn(`Failed to sync action ${action.id}:`, (error as any)?.message ?? error);
+          },
+          invalidateQueries: async () => {
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+              queryClient.invalidateQueries({ queryKey: ['job'] }),
+            ]);
+          },
+        });
       } finally {
         // always release the lock, even if something threw unexpectedly
         isSyncing.current = false;
