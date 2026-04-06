@@ -12,17 +12,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Decodes the JWT payload to extract user_id without a library.
-// atob is available in Hermes (Expo 54+).
-function parseJwtPayload(token: string): { user_id?: number } | null {
-    try {
-        const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-        return JSON.parse(atob(base64));
-    } catch {
-        return null;
-    }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -50,23 +39,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await SecureStore.setItemAsync(TOKEN_KEYS.access, access);
             await SecureStore.setItemAsync(TOKEN_KEYS.refresh, refresh);
 
-            // Client-side driver role gate.
-            // Decode the JWT to get user_id, then verify a Driver record exists for that user.
-            // Note: backend needs IsAuthenticated permission class for production enforcement.
-            const payload = parseJwtPayload(access);
-            if (payload?.user_id) {
-                const driversResponse = await api.get('/drivers/');
-                // Handle both flat arrays and DRF paginated responses ({ results: [...] })
-                const raw = driversResponse.data;
-                const drivers: { user: number | string }[] = Array.isArray(raw) ? raw : (raw.results ?? []);
-                // Use Number() coercion to guard against string/number type mismatch
-                const isDriver = drivers.some((d) => Number(d.user) === Number(payload.user_id));
-
-                if (!isDriver) {
-                    await SecureStore.deleteItemAsync(TOKEN_KEYS.access);
-                    await SecureStore.deleteItemAsync(TOKEN_KEYS.refresh);
+            // Verify the logged-in user has a Driver record by calling the driver-only endpoint.
+            // A non-driver gets 403/404; a network error is re-thrown so the caller sees it.
+            try {
+                await api.get('/drivers/me/');
+            } catch (roleError) {
+                await SecureStore.deleteItemAsync(TOKEN_KEYS.access);
+                await SecureStore.deleteItemAsync(TOKEN_KEYS.refresh);
+                delete api.defaults.headers.common['Authorization'];
+                if (axios.isAxiosError(roleError) &&
+                    (roleError.response?.status === 403 || roleError.response?.status === 404)) {
                     return { error: 'Access denied. This app is for drivers only.' };
                 }
+                throw roleError;
             }
 
             setIsAuthenticated(true);
