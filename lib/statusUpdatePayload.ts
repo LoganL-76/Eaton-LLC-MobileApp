@@ -1,4 +1,4 @@
-import type { QueuedAction } from './offlineQueue';
+import type { DistributiveOmit, QueuedAction } from './offlineQueue';
 
 export type StatusUpdatePayload = {
   status: string;
@@ -16,7 +16,7 @@ export function buildQueuedStatusUpdateAction(
   assignmentId: number,
   status: string,
   expectedStatus: string
-): Omit<QueuedAction, 'id' | 'queuedAt'> {
+): DistributiveOmit<QueuedAction, 'id' | 'queuedAt'> {
   return {
     type: 'status_update',
     assignmentId,

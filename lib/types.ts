@@ -28,7 +28,7 @@ export type Job = {
   material: string;
   job_foreman_name: string;
   job_foreman_contact: string;
-  additional_notes: string;
+  additional_notes: string | null;
   loading_address: number;
   unloading_address: number;
   loading_address_info: Address;

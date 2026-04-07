@@ -8,16 +8,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const QUEUE_KEY = 'EATON_OFFLINE-ACTION-QUEUE';
 
 // Represents a single queued action
-// Right now the only action type is 'status-update', but this shape
-// makes it easy to add new action types ('add_note', 'submit_form', etc) in the future without changing the underlying queue logic
-export type QueuedAction = {
-    id: string; // unique ID for this action, used for deduplication and tracking
-    type: 'status_update'; // type of action, can be extended to support more types in the future
-    assignmentId: number;
-    status: string;
-    expectedStatus: string;
-    queuedAt: string; // ISO timestamp of when the action was queued, useful for debugging and ordering
-};
+// Future action types can be added here as new variants of the QueuedAction union type
+export type QueuedAction = 
+    | {
+        id: string;
+        type: 'status_update';
+        assignmentId: number;
+        status: string;
+        expectedStatus: string;
+        queuedAt: string;
+      }
+    | {
+        id: string;
+        type: 'driver_note';
+        jobId: string;
+        payload: { additional_notes: string };
+        queuedAt: string;
+    };
+    
+
 
 // Reads the full queue from AsyncStorage
 // Returns an empty array if nothing is queued yet
@@ -28,16 +37,20 @@ export async function getQueue(): Promise<QueuedAction[]> {
 
 // Adds a new action to the queue in AsyncStorage (FIFO order)
 // The caller doesn't need to supply id or queuedAt - this function generates them
+
+// Omit that works correctly across Union Types
+export type DistributiveOmit<T, K extends keyof any> = T extends any ? Omit<T, K> : never;
+
 export async function enqueueAction(
-    action: Omit<QueuedAction, 'id' | 'queuedAt'>
+    action: DistributiveOmit<QueuedAction, 'id' | 'queuedAt'>
 ): Promise<void> {
     const queue = await getQueue();
 
-    const newAction: QueuedAction = {
+    const newAction = {
         ...action,
         id: Math.random().toString(36).slice(2), // simple unique ID generator, can be replaced with a more robust solution if needed
         queuedAt: new Date().toISOString(),
-    };
+    } as QueuedAction;
 
     queue.push(newAction);
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
