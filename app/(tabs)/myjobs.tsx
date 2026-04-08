@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // Importing Job and Address types from lib/types.ts
@@ -28,8 +29,52 @@ export default function MyJobsScreen() {
     queryFn: fetchJobs,
   });
 
+  const [isClockedIn, setIsClockedIn] = useState(false);
+  const [clockLoading, setClockLoading] = useState(false);
+
+  const handleClockToggle = async () => {
+    setClockLoading(true);
+    try {
+      if (isClockedIn) {
+        await api.post('/drivers/clock-out/');
+      } else {
+        await api.post('/drivers/clock-in/');
+      }
+      setIsClockedIn(prev => !prev);
+    } catch (err: any) {
+      console.error('Clock toggle failed', err.message);
+    } finally {
+      setClockLoading(false);
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <View style={styles.clockContainer}>
+        <TouchableOpacity
+          style={[styles.clockButton, isClockedIn ? styles.clockButtonOut : styles.clockButtonIn]}
+          onPress={handleClockToggle}
+          disabled={clockLoading}
+        >
+          {clockLoading ? (
+            <ActivityIndicator color={theme.colors.textInverse} size="small" />
+        ) : (
+          <>
+            <MaterialIcons
+              name={isClockedIn ? 'logout' : 'login'}
+              size={20}
+              color={theme.colors.textInverse}
+            />
+            <Text style={styles.clockButtonText}>
+              {isClockedIn ? 'Clock Out' : 'Clock In'}
+            </Text>
+          </>
+        )}
+      </TouchableOpacity>
+      {isClockedIn && (
+        <Text style={styles.clockedInLabel}>● Clocked in</Text>
+      )}
+    </View>
       <View style={styles.header}>
         <Text style={styles.lastRefreshText}>
           {isRefetching ? 'Refreshing...' : `Last updated: ${new Date().toLocaleTimeString()}`}
@@ -150,6 +195,41 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
       fontSize: theme.fontSize.sm,
       color: theme.colors.primary,
       textDecorationLine: 'underline',
+    },
+    clockContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.md,
+      paddingTop: theme.spacing.md,
+      paddingBottom: theme.spacing.sm,
+      gap: theme.spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    clockButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.borderRadius.md,
+    },
+    clockButtonIn: {
+      backgroundColor: theme.colors.success,
+    },
+    clockButtonOut: {
+      backgroundColor: theme.colors.error,
+    },
+    clockButtonText: {
+      color: theme.colors.textInverse,
+      fontWeight: theme.fontWeight.semibold,
+      fontSize: theme.fontSize.md,
+    },
+    clockedInLabel: {
+      fontSize: theme.fontSize.sm,
+      color: theme.colors.success,
+      fontWeight: theme.fontWeight.medium,
     },
   });
 }

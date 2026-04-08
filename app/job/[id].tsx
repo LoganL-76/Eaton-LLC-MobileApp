@@ -270,7 +270,7 @@ export default function JobDetailScreen() {
 
         {/* Driver Notes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Driver Notes</Text>
+          <Text style={styles.sectionTitle}>Notes</Text>
           <TextInput
             style={styles.notesInput}
             placeholder="Add a note"
