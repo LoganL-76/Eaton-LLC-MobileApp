@@ -44,7 +44,8 @@ export type DriverAssignment = {
     driver_truck_info: DriverTruckInfo;
     status: string;
     started_at: string | null; // ISO 8601 format or null
-    completed_at: string | null; 
+    on_site_at: string | null;
+    completed_at: string | null;
     assigned_at: string;
     unassigned_at: string | null; 
 };
