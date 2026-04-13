@@ -14,7 +14,7 @@ import { api } from '../../services/api';
 
 export async function fetchJobs(): Promise<Job[]> {
   const res = await api.get('/drivers/me/jobs/');
-  return res.data;
+  return res.data.results ?? res.data;
 }
 
 export default function MyJobsScreen() {

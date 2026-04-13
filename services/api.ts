@@ -1,4 +1,5 @@
 import axios from 'axios';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
@@ -18,6 +19,10 @@ export const api = axios.create({
         'Content-Type': 'application/json',
     },
 });
+
+// Attach the app version to every request so the backend can log which client version made the call
+const appVersion = Constants.expoConfig?.version ?? '0.0.0';
+api.defaults.headers.common['X-Client-Version'] = appVersion;
 //REQUEST INTERCEPTOR
 // grabs token from secure storage and adds it to the Authorization header of every request
 api.interceptors.request.use(async (config) => {
