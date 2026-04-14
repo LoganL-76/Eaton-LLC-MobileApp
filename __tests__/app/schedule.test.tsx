@@ -24,13 +24,10 @@ const mockApiGet = api.get as jest.Mock;
 
 const dateKey = (d: Date) => d.toISOString().slice(0, 10);
 
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-
-const todayKey = dateKey(today);
-const tomorrow = new Date(today);
-tomorrow.setDate(today.getDate() + 1);
-const tomorrowKey = dateKey(tomorrow);
+const selectedDayKey = dateKey(new Date());
+const nextDay = new Date();
+nextDay.setDate(nextDay.getDate() + 1);
+const nonSelectedDayKey = dateKey(nextDay);
 
 const makeJob = (id: number, jobDate: string): Job => ({
   id,
@@ -96,7 +93,7 @@ describe('MyScheduleScreen', () => {
   });
 
   it('renders jobs for selected day when API returns data', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1, todayKey), makeJob(2, tomorrowKey)] });
+    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1, selectedDayKey), makeJob(2, nonSelectedDayKey)] });
 
     const { getByText, queryByText } = renderScreen();
 
@@ -110,7 +107,7 @@ describe('MyScheduleScreen', () => {
   });
 
   it('renders empty state when no jobs match selected day', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(2, tomorrowKey)] });
+    mockApiGet.mockResolvedValueOnce({ data: [makeJob(2, nonSelectedDayKey)] });
 
     const { getByText, queryByText } = renderScreen();
 
@@ -132,8 +129,8 @@ describe('MyScheduleScreen', () => {
   });
 
   it('pull-to-refresh calls fetch again', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1, todayKey)] });
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1, todayKey)] });
+    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1, selectedDayKey)] });
+    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1, selectedDayKey)] });
 
     const { UNSAFE_getByType } = renderScreen();
 
@@ -155,7 +152,7 @@ describe('MyScheduleScreen', () => {
   });
 
   it('navigates to job detail when a schedule card is pressed', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(44, todayKey)] });
+    mockApiGet.mockResolvedValueOnce({ data: [makeJob(44, selectedDayKey)] });
 
     const { getByText } = renderScreen();
 

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { ActivityIndicator, Alert, Linking } from 'react-native';
@@ -91,16 +92,26 @@ const makeJob = (): Job => ({
 });
 
 function renderScreen() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+    },
+  });
+
   return render(
-    <ThemeProvider>
-      <JobDetailScreen />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <JobDetailScreen />
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
 describe('JobDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockApiGet.mockReset();
+    mockApiPatch.mockReset();
     mockShowActionSheetWithOptions.mockImplementation((_options: any, callback: (i?: number) => void) => {
       callback(0);
     });
@@ -150,7 +161,10 @@ describe('JobDetailScreen', () => {
 
     await waitFor(() => {
       expect(mockShowActionSheetWithOptions).toHaveBeenCalled();
-      expect(mockApiPatch).toHaveBeenCalledWith('/job-driver-assignments/77/status/', { status: 'en_route' });
+      expect(mockApiPatch).toHaveBeenCalledWith('/job-driver-assignments/77/status/', {
+        status: 'en_route',
+        expected_status: 'assigned',
+      });
       expect(getAllByText('En Route').length).toBeGreaterThan(0);
     });
   });
@@ -170,7 +184,10 @@ describe('JobDetailScreen', () => {
     fireEvent.press(getAllByText('Assigned')[0]);
 
     await waitFor(() => {
-      expect(mockApiPatch).toHaveBeenCalledWith('/job-driver-assignments/77/status/', { status: 'en_route' });
+      expect(mockApiPatch).toHaveBeenCalledWith('/job-driver-assignments/77/status/', {
+        status: 'en_route',
+        expected_status: 'assigned',
+      });
       expect(getAllByText('Assigned').length).toBeGreaterThan(0);
       expect(alertSpy).toHaveBeenCalledWith(
         'Failed to update status',
