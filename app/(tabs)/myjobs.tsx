@@ -1,6 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // Importing Job and Address types from lib/types.ts
@@ -10,51 +11,83 @@ import { api } from '../../services/api';
 // It fetches the jobs from the backend API and shows key details like job number, project, date, material, and loading city. 
 // Users can tap on a job to see more details on a separate screen. 
 // The screen also includes pull-to-refresh functionality and error handling for network issues.
+
+export async function fetchJobs(): Promise<Job[]> {
+  const res = await api.get('/drivers/me/jobs/');
+  return res.data.results ?? res.data;
+}
+
 export default function MyJobsScreen() {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
+  
+  // - on mount: checks cache first, then fetches if stale
+  // - while offline: returns whatever is in the persisted cache automatically
+  // - isRefetching: true when refetching in background, can be used to show a loading indicator without blocking the UI
+  const { data: jobs=[], isLoading, isRefetching, error, refetch } = useQuery({
+    queryKey: ['jobs'],
+    queryFn: fetchJobs,
+  });
 
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [error, setError] = useState<string | null>(null);
+  const [isClockedIn, setIsClockedIn] = useState(false);
+  const [clockLoading, setClockLoading] = useState(false);
 
-  const fetchJobs = async () => {
+  const handleClockToggle = async () => {
+    setClockLoading(true);
     try {
-      const res = await api.get('/drivers/me/jobs/');
-      setJobs(res.data);
-      setLastRefresh(new Date());
-      setError(null); // Clear any previous errors
+      if (isClockedIn) {
+        await api.post('/drivers/clock-out/');
+      } else {
+        await api.post('/drivers/clock-in/');
+      }
+      setIsClockedIn(prev => !prev);
     } catch (err: any) {
-    setError(err.message ?? 'Failed to load jobs.');
+      console.error('Clock toggle failed', err.message);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setClockLoading(false);
     }
   };
 
-// useEffect to fetch jobs when the component mounts
-// useEffect cannot be async, so we define an async function inside it and call it immediately
-  useEffect(() => {
-    fetchJobs();
-  }, []);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchJobs();
-  };
-
   return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-    <View style={styles.header}>
-      <Text style={styles.lastRefreshText}>Last Refresh: {lastRefresh.toLocaleTimeString()}</Text>
-      <TouchableOpacity onPress={handleRefresh}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <View style={styles.clockContainer}>
+        <TouchableOpacity
+          style={[styles.clockButton, isClockedIn ? styles.clockButtonOut : styles.clockButtonIn]}
+          onPress={handleClockToggle}
+          disabled={clockLoading}
+        >
+          {clockLoading ? (
+            <ActivityIndicator color={theme.colors.textInverse} size="small" />
+        ) : (
+          <>
+            <MaterialIcons
+              name={isClockedIn ? 'logout' : 'login'}
+              size={20}
+              color={theme.colors.textInverse}
+            />
+            <Text style={styles.clockButtonText}>
+              {isClockedIn ? 'Clock Out' : 'Clock In'}
+            </Text>
+          </>
+        )}
+      </TouchableOpacity>
+      {isClockedIn && (
+        <Text style={styles.clockedInLabel}>● Clocked in</Text>
+      )}
+    </View>
+      <View style={styles.header}>
+        <Text style={styles.lastRefreshText}>
+          {isRefetching ? 'Refreshing...' : `Last updated: ${new Date().toLocaleTimeString()}`}
+        </Text>
+      <TouchableOpacity onPress={() => refetch()}>
         <MaterialIcons name="refresh" size={24} color={theme.colors.primary} />
       </TouchableOpacity>
     </View>
 
-    {loading ? (
+    {isLoading ? (
+      // isLoading is only true on the very first load with no cached data
+      // If cached data exists (even stale), isLoading will be false and
+      // the cached jobs will render immediately whiel a background refetch runs
       <ActivityIndicator 
         size="large" 
         color={theme.colors.primary} 
@@ -63,8 +96,10 @@ export default function MyJobsScreen() {
     ) : error ? (
       <View style={styles.errorContainer}>
         <MaterialIcons name="wifi-off" size={32} color={theme.colors.error} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={fetchJobs}>
+        <Text style={styles.errorText}>
+          {(error as any).message ?? 'Failed to load jobs'}
+        </Text>
+        <TouchableOpacity onPress={() => refetch()}>
           <Text style={styles.retryText}>Tap to retry</Text>
         </TouchableOpacity>
       </View>
@@ -83,7 +118,11 @@ export default function MyJobsScreen() {
         </TouchableOpacity>
       )}
       ListEmptyComponent={<Text style={styles.empty}>No jobs assigned yet</Text>}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      // refetch() is what pull-to-refresh calls
+      // React Query handles the loading state - no need to manage setRefreshing manually
+      refreshControl= {
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+      }
     />
     )}
     </View>
@@ -156,6 +195,41 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
       fontSize: theme.fontSize.sm,
       color: theme.colors.primary,
       textDecorationLine: 'underline',
+    },
+    clockContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.md,
+      paddingTop: theme.spacing.md,
+      paddingBottom: theme.spacing.sm,
+      gap: theme.spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    clockButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.borderRadius.md,
+    },
+    clockButtonIn: {
+      backgroundColor: theme.colors.success,
+    },
+    clockButtonOut: {
+      backgroundColor: theme.colors.error,
+    },
+    clockButtonText: {
+      color: theme.colors.textInverse,
+      fontWeight: theme.fontWeight.semibold,
+      fontSize: theme.fontSize.md,
+    },
+    clockedInLabel: {
+      fontSize: theme.fontSize.sm,
+      color: theme.colors.success,
+      fontWeight: theme.fontWeight.medium,
     },
   });
 }
