@@ -32,42 +32,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = async (username: string, password: string): Promise<{ error: string | null }> => {
-    try {
-        const response = await api.post('/login/', { username, password });
-        const { access, refresh } = response.data;
+        try {
+            const response = await api.post('/login/', { username, password });
+            const { access, refresh } = response.data;
 
-        api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+            if (api.defaults?.headers?.common) {
+                api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+            }
 
-            // Verify the logged-in user has a Driver record by calling the driver-only endpoint.
-            // A non-driver gets 403/404; a network error is re-thrown so the caller sees it.
+            // Verify the logged-in user has a Driver record before persisting tokens.
             try {
                 await api.get('/drivers/me/');
             } catch (roleError) {
                 await SecureStore.deleteItemAsync(TOKEN_KEYS.access);
                 await SecureStore.deleteItemAsync(TOKEN_KEYS.refresh);
-                delete api.defaults.headers.common['Authorization'];
-                if (axios.isAxiosError(roleError) &&
-                    (roleError.response?.status === 403 || roleError.response?.status === 404)) {
+                if (api.defaults?.headers?.common) {
+                    delete api.defaults.headers.common['Authorization'];
+                }
+
+                if (
+                    axios.isAxiosError(roleError) &&
+                    (roleError.response?.status === 403 || roleError.response?.status === 404)
+                ) {
                     return { error: 'Access denied. This app is for drivers only.' };
                 }
+
                 throw roleError;
             }
-        }
 
-        setIsAuthenticated(true);
-        return { error: null };
-    } catch (error: unknown) {
-        if (axios.isAxiosError(error)) {
-            if (error.response?.status === 401) {
-                return { error: 'Invalid username or password' };
+            await SecureStore.setItemAsync(TOKEN_KEYS.access, access);
+            await SecureStore.setItemAsync(TOKEN_KEYS.refresh, refresh);
+
+            setIsAuthenticated(true);
+            return { error: null };
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                if (error.response?.status === 401) {
+                    return { error: 'Invalid username or password' };
+                }
+                if (!error.response) {
+                    return { error: 'Network error. Please try again.' };
+                }
             }
-            if (!error.response) {
-                return { error: 'Network error. Please try again.' };
-            }
+
+            return { error: 'An unexpected error occurred. Please try again.' };
         }
-        return { error: 'An unexpected error occurred. Please try again.' };
-    }
-};
+    };
 
     const logout = async () => {
         await SecureStore.deleteItemAsync(TOKEN_KEYS.access);

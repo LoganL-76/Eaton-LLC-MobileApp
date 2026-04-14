@@ -1,7 +1,8 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import React from 'react';
-import { ActivityIndicator, FlatList } from 'react-native';
+import { ActivityIndicator, TouchableOpacity } from 'react-native';
 
 import MyJobsScreen from '../../app/(tabs)/myjobs';
 import { ThemeProvider } from '../../lib/ThemeContext';
@@ -65,16 +66,25 @@ const makeJob = (id: number): Job => ({
 });
 
 function renderScreen() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+    },
+  });
+
   return render(
-    <ThemeProvider>
-      <MyJobsScreen />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <MyJobsScreen />
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
 describe('MyJobsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockApiGet.mockReset();
   });
 
   it('renders loading spinner on mount', () => {
@@ -121,19 +131,19 @@ describe('MyJobsScreen', () => {
   });
 
   it('pull-to-refresh calls fetch again', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1)] });
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1)] });
+    mockApiGet.mockResolvedValue({ data: [makeJob(1)] });
 
-    const { UNSAFE_getByType } = renderScreen();
+    const { UNSAFE_getAllByType } = renderScreen();
 
     await waitFor(() => {
       expect(mockApiGet).toHaveBeenCalledTimes(1);
     });
 
-    const list = UNSAFE_getByType(FlatList);
+    const touchables = UNSAFE_getAllByType(TouchableOpacity);
+    const refreshButton = touchables[1];
 
     await act(async () => {
-      await list.props.refreshControl.props.onRefresh();
+      await refreshButton.props.onPress();
     });
 
     await waitFor(() => {
@@ -142,7 +152,7 @@ describe('MyJobsScreen', () => {
   });
 
   it('navigates to job detail when a job card is pressed', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(99)] });
+    mockApiGet.mockResolvedValue({ data: [makeJob(99)] });
 
     const { getByText } = renderScreen();
 
