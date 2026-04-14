@@ -63,6 +63,10 @@ describe('offlineQueue', () => {
 
     const remaining = await getQueue();
     expect(remaining).toHaveLength(1);
+    expect(remaining[0].type).toBe('status_update');
+    if (remaining[0].type !== 'status_update') {
+      throw new Error('Expected remaining queued action to be a status update');
+    }
     expect(remaining[0].assignmentId).toBe(2);
   });
 

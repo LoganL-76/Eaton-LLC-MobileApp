@@ -84,6 +84,7 @@ const makeJob = (): Job => ({
       },
       status: 'assigned',
       started_at: '2026-03-28T14:00:00Z',
+      on_site_at: null,
       completed_at: null,
       assigned_at: '2026-03-28T13:00:00Z',
       unassigned_at: null,
