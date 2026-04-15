@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // Importing Job and Address types from lib/types.ts
 import { api } from '../../services/api';
@@ -37,6 +37,22 @@ export default function MyJobsScreen() {
     try {
       if (isClockedIn) {
         await api.post('/drivers/clock-out/');
+        //prompt user to sumbit tickets on clock out
+        setIsClockedIn(false);
+        Alert.alert(
+          'Clocked Out',
+          'Do you have tickets to submit for this shift?',
+          [
+            {
+              text: 'Submit Tickets',
+              onPress: () => router.push('/(tabs)/tickets'),
+            },
+            {
+              text: 'Submit Later',
+              style: 'cancel',
+            },
+          ]
+        );
       } else {
         await api.post('/drivers/clock-in/');
       }

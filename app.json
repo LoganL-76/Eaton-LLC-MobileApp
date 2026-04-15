@@ -39,7 +39,14 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to take photos and videos.",
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to upload images."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
