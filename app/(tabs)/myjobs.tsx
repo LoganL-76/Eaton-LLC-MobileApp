@@ -2,7 +2,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { router, useNavigation } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useClock } from '../../contexts/ClockContext';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // Importing Job and Address types from lib/types.ts
@@ -23,6 +23,36 @@ export default function MyJobsScreen() {
   const styles = makeStyles(theme);
 
   const { isClockedIn, clockLoading, handleClockToggle } = useClock();
+
+  // Clock out prompt to get drivers to submit tickets
+  const handleClockOutPrompt = async () => {
+    if (isClockedIn) {
+      Alert.alert(
+        'Before You Clock Out',
+        'Do you have tickets to submit',
+        [
+          {
+            text: 'Submit Tickets',
+            onPress: async () => {
+              await handleClockToggle();
+              router.push('/(tabs)/tickets');
+            },
+          },
+          {
+            text: 'No, Clock Out',
+            style: 'destructive',
+            onPress: handleClockToggle,
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ]
+      );
+    } else {
+      handleClockToggle();
+    }
+  };
   
   // - on mount: checks cache first, then fetches if stale
   // - while offline: returns whatever is in the persisted cache automatically
@@ -32,12 +62,13 @@ export default function MyJobsScreen() {
     queryFn: fetchJobs,
   });
 
+  // clock in/out useEffect
   const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <TouchableOpacity
-          onPress = {handleClockToggle}
+          onPress = {handleClockOutPrompt}
           disabled={clockLoading}
           style={{
             flexDirection: 'row',
@@ -90,7 +121,7 @@ export default function MyJobsScreen() {
     {isLoading ? (
       // isLoading is only true on the very first load with no cached data
       // If cached data exists (even stale), isLoading will be false and
-      // the cached jobs will render immediately whiel a background refetch runs
+      // the cached jobs will render immediately while a background refetch runs
       <ActivityIndicator 
         size="large" 
         color={theme.colors.primary} 
