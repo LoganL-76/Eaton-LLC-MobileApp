@@ -1,7 +1,8 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/ThemeContext';
 import { api } from '../../services/api';
 
@@ -9,7 +10,7 @@ export default function TicketsScreen() {
     const { theme } = useTheme();
     const styles = makeStyles(theme);
 
-    const [imageUri, setImageUri] = useState<string | null>(null);
+    const [imageUri, setImageUri] = useState<string[]>([]);
     const [uploading, setUploading] = useState(false);
 
     // Function to handle image selection from camera
@@ -24,7 +25,7 @@ export default function TicketsScreen() {
         }
 
         const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             // allows editing of the captured image
             allowsEditing: true,
             // compresses image to 70%
@@ -32,7 +33,7 @@ export default function TicketsScreen() {
         });
 
         if (!result.canceled) {
-            setImageUri(result.assets[0].uri);
+            setImageUri((prev) => [...prev, result.assets[0].uri]);
         }
     };
     //  gallery image selection function
@@ -47,28 +48,30 @@ export default function TicketsScreen() {
         }
 
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
+            mediaTypes: ['images'],
+            allowsMultipleSelection: true,
             quality: 0.7,
         });
 
         if (!result.canceled) {
-            setImageUri(result.assets[0].uri);
+            setImageUri((prev) => [...prev, ...result.assets.map(a => a.uri)]);
         }
     };
 
     // Function to handle ticket submission
     const handleSubmit = async () => {
-        if (!imageUri) return;
+        if (!imageUri.length) return;
 
         setUploading(true);
         try {
             const formData = new FormData();
-            formData.append('photo', {
-                uri: imageUri, 
-                name: `ticket_${Date.now()}.jpg`,
-                type: 'image/jpeg',
-            } as any);
+            imageUri.forEach((uri, index) => {
+                formData.append('photos', {
+                    uri,
+                    name: `ticket_${Date.now()}_${index}.jpg`,
+                    type: 'image/jpeg',
+                } as any);
+            });
 
             await api.post('/tickets/', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
@@ -97,12 +100,16 @@ export default function TicketsScreen() {
                     Take a photo of your paperwork or pick one from your gallery.
                 </Text>
                 
-                {imageUri ? (
+                {imageUri.length > 0 ? (
                     // Show preview of selected image
                     <View style={styles.previewContainer}>
-                        <Image source={{ uri: imageUri }} style={styles.preview} resizeMode = "contain" />
-                        <TouchableOpacity onPress = {() => setImageUri(null)} style={styles.retakeButton}>
-                            <Text style={styles.retakeText}>Retake Photo/ Choose Different</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ width: '100%'}}>
+                            {imageUri.map((uri, index) => (
+                                <Image key={index} source={{ uri }} style={styles.preview} resizeMode = "contain"/>
+                            ))}
+                        </ScrollView>
+                        <TouchableOpacity onPress = {() => setImageUri([])} style={styles.retakeButton}>
+                            <Text style={styles.retakeText}>Clear All / Choose Different</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -117,7 +124,7 @@ export default function TicketsScreen() {
                     </View> 
                 )}
 
-                {imageUri && (
+                {imageUri.length > 0 && (
                     <TouchableOpacity
                         style={[styles.submitButton, uploading && styles.submitDisabled]}
                         onPress={handleSubmit}

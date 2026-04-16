@@ -7,6 +7,7 @@ import * as Notifications from 'expo-notifications';
 import { Stack, router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { getQueue, removeAction } from "../lib/offlineQueue";
 import { replayQueuedStatusUpdates } from '../lib/statusUpdateSync';
@@ -119,6 +120,7 @@ export default function RootLayout() {
   }, []);
 
   return (
+    <SafeAreaView>
     <ThemeProvider>
       <PersistQueryClientProvider
         client={queryClient}
@@ -146,6 +148,7 @@ export default function RootLayout() {
         </ActionSheetProvider>
       </PersistQueryClientProvider>
     </ThemeProvider>
+    </SafeAreaView>
   );
 }
 
