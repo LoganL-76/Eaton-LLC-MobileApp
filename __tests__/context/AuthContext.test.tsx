@@ -137,7 +137,7 @@ describe('AuthContext', () => {
                 result = await capturedAuth.login('bad', 'creds');
             });
 
-            expect(result!.error).toBe('Invalid username or password');
+            expect(result!.error).toBe('Invalid username or password.');
             expect(api.get).not.toHaveBeenCalled();
             expect(capturedAuth.isAuthenticated).toBe(false);
         });
@@ -153,7 +153,7 @@ describe('AuthContext', () => {
                 result = await capturedAuth.login('user', 'pass');
             });
 
-            expect(result!.error).toBe('Network error. Please try again.');
+            expect(result!.error).toBe('Network error. Please check your connection and try again.');
             expect(api.get).not.toHaveBeenCalled();
             expect(capturedAuth.isAuthenticated).toBe(false);
         });
