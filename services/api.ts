@@ -2,8 +2,28 @@ import axios from 'axios';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
+const getBaseUrl = () => {
+  if (__DEV__) {
+    // Try to get your machine IP dynamically
+    const hostUri = Constants.expoConfig?.hostUri;
+
+    if (hostUri) {
+      const ip = hostUri.split(':')[0];
+      return `http://${ip}:8000/api`;
+    }
+
+    // Fallback for Android emulator
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:8000/api';
+    }
+  }
+
+  return process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
+};
+
+const BASE_URL = getBaseUrl();
 
 //Keys used to store tokens in SecureStore
 export const TOKEN_KEYS = {
