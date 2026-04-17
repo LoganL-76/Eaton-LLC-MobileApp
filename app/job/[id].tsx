@@ -84,6 +84,7 @@ export default function JobDetailScreen() {
         `/job-driver-assignments/${assignmentId}/status/`,
         buildStatusUpdatePayload(newStatus, previousStatus)
       );
+      await fetchJob();
     } catch (err: any){
       // Server rejected it - roll back the optimistic update and show an error
       setStatus(previousStatus);
@@ -247,7 +248,7 @@ export default function JobDetailScreen() {
               { label: 'Assigned', time: job.driver_assignments[0]?.assigned_at },
               { label: 'En Route', time: job.driver_assignments[0]?.started_at },
               // TODO: backend needs to support these timestamps for accurate timeline
-              { label: 'On Site', time: job.driver_assignments[0]?.completed_at },
+              { label: 'On Site', time: job.driver_assignments[0]?.on_site_at },  
               { label: 'Completed', time: job.driver_assignments[0]?.completed_at },
             ].map(({ label, time }) => (
               <View key={label} style={styles.timelineRow}>
