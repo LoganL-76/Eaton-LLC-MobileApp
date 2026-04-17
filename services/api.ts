@@ -44,7 +44,8 @@ api.interceptors.response.use(
         const originalRequest = error.config;
 
         // If the error is a 401 and we haven't already tried to refresh
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Skip token refresh for the /login/ endpoint - a 401 there means invalid credentials, not token expiration
+        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/login/')) {
             originalRequest._retry = true; // flag to prevent infinite loops
 
             try {

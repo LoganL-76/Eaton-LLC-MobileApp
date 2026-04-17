@@ -169,8 +169,10 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     fontWeight: theme.fontWeight.semibold,
   },
   errorText: {
-    color: theme.colors.textSecondary,
+    color: theme.colors.error,
     marginTop: theme.spacing.xs,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
   },
   
 });
