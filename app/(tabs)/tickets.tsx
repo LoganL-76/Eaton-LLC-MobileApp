@@ -2,8 +2,8 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useClock } from '../../contexts/ClockContext';
 import { useTheme } from '../../lib/ThemeContext';
@@ -42,7 +42,7 @@ export default function TicketsScreen() {
     const queryClient = useQueryClient();
     const navigation = useNavigation();
 
-    const { isClockedIn, clockLoading, handleClockToggle } = useClock();
+    const { isClockedIn, clockLoading, isTracking, handleClockToggle } = useClock();
 
     const stripDays = buildDateStrip();
 
@@ -55,50 +55,79 @@ export default function TicketsScreen() {
     const [uploading, setUploading] = useState(false);
 
     const isToday = selectedDate === todayKey;
+
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    useEffect(() => {
+        if (!isTracking) return;
+        const pulse = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+            ])
+        );
+        pulse.start();
+        return () => pulse.stop();
+    }, [isTracking]);
     
 // Clock in button
     useEffect(() => {
         navigation.setOptions({
             headerRight: () => (
-                <TouchableOpacity
-                    onPress={handleClockToggle}
-                    disabled={clockLoading}
-                    style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 6,
-                        backgroundColor: '#ffffff',
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderRadius: 20,
-                        marginRight: 12,
-                        borderWidth: 4,
-                        borderColor: isClockedIn ? theme.colors.error : theme.colors.success,
-                    }}
-                >
-                    {clockLoading ? (
-                        <ActivityIndicator size="small" color={isClockedIn ? theme.colors.error : theme.colors.success} />
-                    ) : (
-                        <>
-                            <View style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: 4,
-                                backgroundColor: isClockedIn ? theme.colors.error : theme.colors.success,
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 12}}>
+                    {isTracking && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Animated.View style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: 3,
+                                backgroundColor: theme.colors.error,
+                                 opacity: pulseAnim,
                             }} />
-                            <Text style={{
-                                fontSize: theme.fontSize.sm,
-                                fontWeight: theme.fontWeight.bold,
-                                color: isClockedIn ? theme.colors.error : theme.colors.success,
-                            }}>
-                                {isClockedIn ? 'Clock Out' : 'Clock In'}
+                            <Text style={{ fontSize: theme.fontSize.xs, color: theme.colors.error, fontWeight: theme.fontWeight.semibold }}>
+                                LIVE
                             </Text>
-                        </>
+                        </View>
                     )}
-                </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={handleClockToggle}
+                        disabled={clockLoading}
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                            backgroundColor: '#ffffff',
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 20,
+                            marginRight: 12,
+                            borderWidth: 4,
+                            borderColor: isClockedIn ? theme.colors.error : theme.colors.success,
+                        }}
+                    >
+                        {clockLoading ? (
+                            <ActivityIndicator size="small" color={isClockedIn ? theme.colors.error : theme.colors.success} />
+                        ) : (
+                            <>
+                                <View style={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: 4,
+                                    backgroundColor: isClockedIn ? theme.colors.error : theme.colors.success,
+                                }} />
+                                <Text style={{
+                                    fontSize: theme.fontSize.sm,
+                                    fontWeight: theme.fontWeight.bold,
+                                    color: isClockedIn ? theme.colors.error : theme.colors.success,
+                                }}>
+                                    {isClockedIn ? 'Clock Out' : 'Clock In'}
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
             ),
         });
-    }, [isClockedIn, clockLoading]);
+    }, [isClockedIn, clockLoading, isTracking, pulseAnim]);
 
     // Fetches tickets for the selected date from the backend
     // queryKey includes selectedDate so each date gets its own cache entry

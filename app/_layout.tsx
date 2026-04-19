@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import '../lib/locationTracking';
 import { getQueue, removeAction } from "../lib/offlineQueue";
 import { replayQueuedStatusUpdates } from '../lib/statusUpdateSync';
 import { ThemeProvider } from '../lib/ThemeContext';

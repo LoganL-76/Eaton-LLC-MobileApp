@@ -1,8 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { router, useNavigation } from 'expo-router';
-import { useEffect } from 'react';
-import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, Alert, Animated, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useClock } from '../../contexts/ClockContext';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // Importing Job and Address types from lib/types.ts
@@ -22,7 +22,21 @@ export default function MyJobsScreen() {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
 
-  const { isClockedIn, clockLoading, handleClockToggle } = useClock();
+  const { isClockedIn, clockLoading, isTracking, handleClockToggle } = useClock();
+
+  // Pulsing animation for live dot
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!isTracking) return;
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.3, duration: 800, useNativeDriver: true}),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true}),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [isTracking]);
 
   // Clock out prompt to get drivers to submit tickets
   const handleClockOutPrompt = async () => {
@@ -66,6 +80,23 @@ export default function MyJobsScreen() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
+        <View style= {{ flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 12}}>
+          {/* Live tracking indicator - visible when tracking is active */}
+          {isTracking && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4}}>
+              <Animated.View style = {{
+                width: 6, 
+                height: 6, 
+                borderRadius: 3,
+                backgroundColor: theme.colors.error,
+                opacity: pulseAnim,
+              }} />
+              <Text style={{ fontSize: theme.fontSize.xs, color: theme.colors.error, fontWeight: theme.fontWeight.semibold }}>
+                LIVE
+              </Text>
+            </View>
+          )}
+
         <TouchableOpacity
           onPress = {handleClockOutPrompt}
           disabled={clockLoading}
@@ -102,9 +133,10 @@ export default function MyJobsScreen() {
             </>
           )}
         </TouchableOpacity>
+      </View>
       ),
     });
-  }, [isClockedIn, clockLoading]);
+  }, [isClockedIn, clockLoading, isTracking, pulseAnim]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
