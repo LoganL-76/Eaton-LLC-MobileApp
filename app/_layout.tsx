@@ -131,7 +131,7 @@ export default function RootLayout() {
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                   <Stack.Screen name="job/[id]" options={{ title: 'Job Details', headerShown: true }} />
                   <Stack.Screen name="more/profiledetails" options={{ title: 'My Profile', headerShown: true }} />
-                  <Stack.Screen name="more/schedule" options={{ title: 'My Schedule', headerShown: true }} />
+                  <Stack.Screen name="more/permissions" options={{ title: 'Permissions', headerShown: true }} />
                 </Stack>
               </ClockProvider>
             </AuthProvider>

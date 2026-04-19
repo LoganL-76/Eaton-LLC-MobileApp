@@ -11,14 +11,21 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.eatonllc.partnerapp",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Your location is shared with dispatch while you are clocked in.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Your location is shared with dispatch while you are clocked in, including when the app is in the background."
       }
     },
     "android": {
       "package": "com.eatonllc.partnerapp",
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     "web": {
       "output": "static"
@@ -31,6 +38,12 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Your location is shared with dispatch while you are clocked in."
+        }
+      ],
       [
         "expo-splash-screen",
         {

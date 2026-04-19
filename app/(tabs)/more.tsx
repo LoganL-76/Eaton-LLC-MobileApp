@@ -26,12 +26,6 @@ export default function MoreScreen() {
                 <Text style={styles.rowLabel}>My Profile</Text>
                 <Text style={styles.rowChevron}>›</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.row} onPress={() => router.push('/more/schedule')}>
-                <MaterialIcons name="calendar-today" size={20} color={theme.colors.textSecondary} style={{ marginRight: theme.spacing.sm }} />
-                <Text style={styles.rowLabel}>My Schedule</Text>
-                <Text style={styles.rowChevron}>›</Text>
-            </TouchableOpacity>
-
             <Text style={styles.sectionLabel}>PREFERENCES</Text>
             <View style={styles.row}>
                 <Text style={styles.rowLabel}>Toggle Mode</Text>
@@ -49,6 +43,13 @@ export default function MoreScreen() {
                 />
             </View>
 
+            <Text style={styles.sectionLabel}>APP</Text>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('/more/permissions')}>
+                <MaterialIcons name="tune" size={20} color={theme.colors.textSecondary} style={{ marginRight: theme.spacing.sm }} />
+                <Text style={styles.rowLabel}>Permissions</Text>
+                <Text style={styles.rowChevron}>›</Text>
+            </TouchableOpacity>
+            
             <Text style={styles.sectionLabel}>SESSION</Text>
             <TouchableOpacity style={styles.row} onPress={handleLogout}>
                 <MaterialIcons name="logout" size={20} color={theme.colors.error} style={{ marginRight: theme.spacing.sm }} />
