@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { enqueueAction } from '../../lib/offlineQueue';
 import { buildQueuedStatusUpdateAction, buildStatusUpdatePayload } from '../../lib/statusUpdatePayload';
 import { isStatusSyncConflict } from '../../lib/syncConflicts';
@@ -20,7 +20,6 @@ export default function JobDetailScreen() {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
   const { showActionSheetWithOptions } = useActionSheet();
-  const [ driverNote, setDriverNote ] = useState('');
   
   // useQuery cahces each job individually by its ID
   // Opening a job detail while offline will show the last cached version automatically
@@ -117,39 +116,6 @@ export default function JobDetailScreen() {
         updateStatus(values[selectedIndex]);
       }
     );
-  };
-
-  const saveDriverNote = async () => {
-    const trimmed = driverNote.trim();
-    if (!trimmed) {
-      Alert.alert('Note cannot be empty');
-      return;
-    }
-
-    const { isConnected } = await NetInfo.fetch();
-
-    if (!isConnected) {
-      try {
-        await enqueueAction({
-          type: 'driver_note',
-          jobId: String(id),
-          payload: { additional_notes: trimmed },
-        });
-        Alert.alert('Saved Offline', 'Your note has been saved and will be synced when you have a connection.');
-      } catch { 
-        Alert.alert('Failed to save', 'Unable to queue note for offline sync. Please try again.');
-      }
-      return;
-    }
-
-    try {
-      await api.patch(`/jobs/${id}/`, { additional_notes: trimmed});
-      Alert.alert('Saved', 'Your note has been saved successfully.')
-      setDriverNote('');
-      fetchJob();
-    } catch (err: any) {
-      Alert.alert('Failed to save', err.message ?? 'An error occurred while saving your note. Please try again.');
-    }
   };
   
   if (loading) {
@@ -260,35 +226,15 @@ export default function JobDetailScreen() {
             ))}
           </View>
         </View>
-
-        {/* Additional Notes */}
-        {job.additional_notes ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Additional Notes</Text>
-            <Text style={styles.detail}>{job.additional_notes}</Text>
-          </View>
-        ) : null}
-
-        {/* Driver Notes */}
+        
+        {/* Notes */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notes</Text>
-          <TextInput
-            style={styles.notesInput}
-            placeholder="Add a note"
-            placeholderTextColor={theme.colors.textSecondary}
-            value={driverNote}
-            onChangeText={setDriverNote}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-          <TouchableOpacity style={styles.saveButton}
-            onPress={() => {saveDriverNote()}}
-          >
-            <Text style={styles.saveButtonText}>Save Note</Text>
-          </TouchableOpacity>
+          {job.additional_notes
+            ? <Text style={styles.detail}>{job.additional_notes}</Text>
+            : <Text style={[styles.detail, { fontStyle: 'italic'}]}>No notes from dispatch</Text>
+          }
         </View>
-
         {/* Foreman */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Foreman</Text>
@@ -386,27 +332,6 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     timelineValue: {
       fontSize: theme.fontSize.sm,
       color: theme.colors.textSecondary,
-    },
-    notesInput: {
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing.md,
-      color: theme.colors.text,
-      fontSize: theme.fontSize.md,
-      minHeight: 100,
-    },
-    saveButton: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.borderRadius.md,
-      paddingVertical: theme.spacing.sm,
-      alignItems: 'center',
-      marginTop: theme.spacing.xs,
-    },
-    saveButtonText: {
-      color: '#fff',
-      fontSize: theme.fontSize.md,
-      fontWeight: theme.fontWeight.semibold,
     },
   });
 }

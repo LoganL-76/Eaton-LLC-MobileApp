@@ -100,19 +100,6 @@ export default function RootLayout() {
             ]);
           },
         });
-        // Handle Driver Notes separately since they have a different endpoint and payload structure
-        const noteActions = queue.filter( a => a.type === 'driver_note');
-        for (const action of noteActions) {
-          try {
-            await api.patch('/jobs/${action.jobId}/', action.payload);
-            await removeAction(action.id);
-            await queryClient.invalidateQueries({ queryKey: ['job', action.jobId] });
-          } catch (error) {
-            console.warn(`Failed to sync driver note ${action.id}:`, (error as any)?.message ?? error);
-            // leave it in queue to retry next time
-            break;
-          }
-        }
       } finally {
         isSyncing.current = false;
       }
