@@ -29,12 +29,11 @@ export default function MyJobsScreen() {
     if (isClockedIn) {
       Alert.alert(
         'Before You Clock Out',
-        'Do you have tickets to submit',
+        'Do you have tickets to submit?',
         [
           {
             text: 'Submit Tickets',
             onPress: async () => {
-              await handleClockToggle();
               router.push('/(tabs)/tickets');
             },
           },

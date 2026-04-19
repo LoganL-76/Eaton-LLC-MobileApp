@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useClock } from '../../contexts/ClockContext';
 import { enqueueAction } from '../../lib/offlineQueue';
 import { buildQueuedStatusUpdateAction, buildStatusUpdatePayload } from '../../lib/statusUpdatePayload';
 import { isStatusSyncConflict } from '../../lib/syncConflicts';
@@ -20,6 +21,7 @@ export default function JobDetailScreen() {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
   const { showActionSheetWithOptions } = useActionSheet();
+  const {isClockedIn, handleClockToggle } = useClock();
   
   // useQuery cahces each job individually by its ID
   // Opening a job detail while offline will show the last cached version automatically
@@ -53,6 +55,26 @@ export default function JobDetailScreen() {
   const updateStatus = async (newStatus: string) => {
     const assignmentId = job?.driver_assignments[0]?.id;
     if (!assignmentId) return;
+
+    // gate on clock status before anything else
+    if (!isClockedIn) {
+      Alert.alert(
+        'Not Clocked In',
+        'You need to be clocked in to update job status. Would you like to clock in now?',
+        [
+          {
+            text: 'Clock In',
+            onPress: async() => {
+              await handleClockToggle();
+              // After clocking in, proceed with the status update automatically
+              updateStatus(newStatus);
+            },
+          },
+          { text: 'Cancel', style: 'cancel'},
+        ]
+      );
+      return; 
+    }
 
     // always update UI immediately so the driver gets instant feedback
     // 'Optimistic update' - we assume success and roll back if the API call fails
