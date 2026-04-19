@@ -31,6 +31,13 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="tickets"
+                options={{
+                    title: "Tickets",
+                    tabBarIcon: ({ color }) => <MaterialIcons name="receipt" size={24} color={color} />
+                }}
+            />
+            <Tabs.Screen
                 name="notifications"
                 options = {{
                     title: "Notifications",

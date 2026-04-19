@@ -1,8 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { router, useNavigation } from 'expo-router';
+import { useEffect } from 'react';
+import { ActivityIndicator, Alert, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useClock } from '../../contexts/ClockContext';
 import { useTheme } from '../../lib/ThemeContext';
 import { Job } from '../../lib/types'; // Importing Job and Address types from lib/types.ts
 import { api } from '../../services/api';
@@ -20,6 +21,38 @@ export async function fetchJobs(): Promise<Job[]> {
 export default function MyJobsScreen() {
   const { theme } = useTheme();
   const styles = makeStyles(theme);
+
+  const { isClockedIn, clockLoading, handleClockToggle } = useClock();
+
+  // Clock out prompt to get drivers to submit tickets
+  const handleClockOutPrompt = async () => {
+    if (isClockedIn) {
+      Alert.alert(
+        'Before You Clock Out',
+        'Do you have tickets to submit',
+        [
+          {
+            text: 'Submit Tickets',
+            onPress: async () => {
+              await handleClockToggle();
+              router.push('/(tabs)/tickets');
+            },
+          },
+          {
+            text: 'No, Clock Out',
+            style: 'destructive',
+            onPress: handleClockToggle,
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ]
+      );
+    } else {
+      handleClockToggle();
+    }
+  };
   
   // - on mount: checks cache first, then fetches if stale
   // - while offline: returns whatever is in the persisted cache automatically
@@ -29,52 +62,53 @@ export default function MyJobsScreen() {
     queryFn: fetchJobs,
   });
 
-  const [isClockedIn, setIsClockedIn] = useState(false);
-  const [clockLoading, setClockLoading] = useState(false);
-
-  const handleClockToggle = async () => {
-    setClockLoading(true);
-    try {
-      if (isClockedIn) {
-        await api.post('/drivers/clock-out/');
-      } else {
-        await api.post('/drivers/clock-in/');
-      }
-      setIsClockedIn(prev => !prev);
-    } catch (err: any) {
-      console.error('Clock toggle failed', err.message);
-    } finally {
-      setClockLoading(false);
-    }
-  };
+  // clock in/out useEffect
+  const navigation = useNavigation();
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress = {handleClockOutPrompt}
+          disabled={clockLoading}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            backgroundColor: '#ffffff',
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 20,
+            marginRight: 12,
+            borderWidth: 4,
+            borderColor: isClockedIn ? theme.colors.error : theme.colors.success,
+          }}
+        >
+          {clockLoading ? (
+            <ActivityIndicator size="small" color={isClockedIn ? theme.colors.error : theme.colors.success} />
+          ) : (
+            <>
+              <View style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: isClockedIn ? theme.colors.error : theme.colors.success,
+              }} />
+              <Text style={{
+                fontSize: theme.fontSize.sm,
+                fontWeight: theme.fontWeight.bold,
+                color: isClockedIn ? theme.colors.error : theme.colors.success,
+              }}>
+                {isClockedIn ? 'Clock Out' : 'Clock In'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      ),
+    });
+  }, [isClockedIn, clockLoading]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <View style={styles.clockContainer}>
-        <TouchableOpacity
-          style={[styles.clockButton, isClockedIn ? styles.clockButtonOut : styles.clockButtonIn]}
-          onPress={handleClockToggle}
-          disabled={clockLoading}
-        >
-          {clockLoading ? (
-            <ActivityIndicator color={theme.colors.textInverse} size="small" />
-        ) : (
-          <>
-            <MaterialIcons
-              name={isClockedIn ? 'logout' : 'login'}
-              size={20}
-              color={theme.colors.textInverse}
-            />
-            <Text style={styles.clockButtonText}>
-              {isClockedIn ? 'Clock Out' : 'Clock In'}
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
-      {isClockedIn && (
-        <Text style={styles.clockedInLabel}>● Clocked in</Text>
-      )}
-    </View>
       <View style={styles.header}>
         <Text style={styles.lastRefreshText}>
           {isRefetching ? 'Refreshing...' : `Last updated: ${new Date().toLocaleTimeString()}`}
@@ -87,7 +121,7 @@ export default function MyJobsScreen() {
     {isLoading ? (
       // isLoading is only true on the very first load with no cached data
       // If cached data exists (even stale), isLoading will be false and
-      // the cached jobs will render immediately whiel a background refetch runs
+      // the cached jobs will render immediately while a background refetch runs
       <ActivityIndicator 
         size="large" 
         color={theme.colors.primary} 
@@ -195,41 +229,6 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
       fontSize: theme.fontSize.sm,
       color: theme.colors.primary,
       textDecorationLine: 'underline',
-    },
-    clockContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: theme.spacing.md,
-      paddingTop: theme.spacing.md,
-      paddingBottom: theme.spacing.sm,
-      gap: theme.spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-    },
-    clockButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing.xs,
-      paddingHorizontal: theme.spacing.lg,
-      paddingVertical: theme.spacing.sm,
-      borderRadius: theme.borderRadius.md,
-    },
-    clockButtonIn: {
-      backgroundColor: theme.colors.success,
-    },
-    clockButtonOut: {
-      backgroundColor: theme.colors.error,
-    },
-    clockButtonText: {
-      color: theme.colors.textInverse,
-      fontWeight: theme.fontWeight.semibold,
-      fontSize: theme.fontSize.md,
-    },
-    clockedInLabel: {
-      fontSize: theme.fontSize.sm,
-      color: theme.colors.success,
-      fontWeight: theme.fontWeight.medium,
     },
   });
 }

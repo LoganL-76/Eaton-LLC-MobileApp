@@ -62,4 +62,16 @@ export type Driver = {
     user: number;
     operator: number;
     created_at: string;
-}
+};
+
+export type TicketPhoto = {
+    id: number;
+    photo: string 
+};
+
+export type Ticket = {
+    id: number;
+    date: string;
+    submitted_at: string;
+    photos: TicketPhoto[];
+};

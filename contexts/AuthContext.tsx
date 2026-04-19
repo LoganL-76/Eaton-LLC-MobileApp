@@ -68,13 +68,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error: unknown) {
             if (axios.isAxiosError(error)) {
                 if (error.response?.status === 401) {
-                    return { error: 'Invalid username or password' };
+                    return { error: 'Invalid username or password.' };
+                }
+                if (error.response?.status === 400) {
+                    // Check if backend returned a specific error message
+                    const message = error.response?.data?.detail || error.response?.data?.message;
+                    if (message) {
+                        return { error: message };
+                    }
+                    return { error: 'Invalid username or password.' };
                 }
                 if (!error.response) {
-                    return { error: 'Network error. Please try again.' };
+                    return { error: 'Network error. Please check your connection and try again.' };
+                }
+                if (error.response?.status === 500) {
+                    return { error: 'Server error. Please try again later.' };
                 }
             }
 
+            console.error('Login error:', error);
             return { error: 'An unexpected error occurred. Please try again.' };
         }
     };

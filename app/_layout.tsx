@@ -1,3 +1,4 @@
+import { ClockProvider } from "@/contexts/ClockContext";
 import { asyncStoragePersister, queryClient } from "@/lib/queryClient";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import NetInfo from '@react-native-community/netinfo';
@@ -7,6 +8,7 @@ import * as Notifications from 'expo-notifications';
 import { Stack, router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { getQueue, removeAction } from "../lib/offlineQueue";
 import { replayQueuedStatusUpdates } from '../lib/statusUpdateSync';
@@ -119,32 +121,36 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{ persister: asyncStoragePersister, maxAge: 1000 * 60 * 60 * 24, buster: 'v1' }}
-      >
-        <ActionSheetProvider>
-          <AuthProvider>
-            <AppInitializer />
-            {isOffline && (
-              <View style={styles.offlineBanner}>
-                <Text style={styles.offlineBannerText}>
-                  No connection — showing cached data
-                </Text>
-              </View>
-            )}
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="job/[id]" options={{ title: 'Job Details', headerShown: true }} />
-              <Stack.Screen name="more/profiledetails" options={{ title: 'My Profile', headerShown: true }} />
-              <Stack.Screen name="more/schedule" options={{ title: 'My Schedule', headerShown: true }} />
-            </Stack>
-          </AuthProvider>
-        </ActionSheetProvider>
-      </PersistQueryClientProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister: asyncStoragePersister, maxAge: 1000 * 60 * 60 * 24, buster: 'v1' }}
+        >
+          <ActionSheetProvider>
+            <AuthProvider>
+              <ClockProvider>
+              <AppInitializer />
+                {isOffline && (
+                  <View style={styles.offlineBanner}>
+                    <Text style={styles.offlineBannerText}>
+                      No connection — showing cached data
+                    </Text>
+                  </View>
+                )}
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="job/[id]" options={{ title: 'Job Details', headerShown: true }} />
+                  <Stack.Screen name="more/profiledetails" options={{ title: 'My Profile', headerShown: true }} />
+                  <Stack.Screen name="more/schedule" options={{ title: 'My Schedule', headerShown: true }} />
+                </Stack>
+              </ClockProvider>
+            </AuthProvider>
+          </ActionSheetProvider>
+        </PersistQueryClientProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
