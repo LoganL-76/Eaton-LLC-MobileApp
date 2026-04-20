@@ -97,6 +97,10 @@ const makeJob = (): Job => ({
       completed_at: null,
       assigned_at: '2026-03-28T13:00:00Z',
       unassigned_at: null,
+      backhaul_status: null,
+      backhaul_started_at: null,
+      backhaul_on_site_at: null,
+      backhaul_completed_at: null,
     },
   ],
 });

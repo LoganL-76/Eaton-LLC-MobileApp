@@ -48,7 +48,7 @@ export default function MyJobsScreen() {
           {
             text: 'Submit Tickets',
             onPress: async () => {
-              router.push('/(tabs)/tickets');
+              router.push('./tickets');
             },
           },
           {
