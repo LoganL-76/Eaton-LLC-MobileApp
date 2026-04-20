@@ -1,5 +1,5 @@
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 import LoginScreen from '../../app/(auth)/login';
 import { ThemeProvider } from '../../lib/ThemeContext';

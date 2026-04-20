@@ -31,6 +31,15 @@ jest.mock('../../services/api', () => ({
   },
 }));
 
+jest.mock('../../contexts/ClockContext', () => ({
+  useClock: () => ({
+    isClockedIn: true,
+    clockLoading: false,
+    isTracking: false,
+    handleClockToggle: jest.fn(),
+  }),
+}));
+
 const mockApiGet = api.get as jest.Mock;
 const mockApiPatch = api.patch as jest.Mock;
 
@@ -149,7 +158,19 @@ describe('JobDetailScreen', () => {
   });
 
   it('calls PATCH when status is updated', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: makeJob() });
+    const job = makeJob();
+    mockApiGet.mockResolvedValueOnce({ data: job });
+    mockApiGet.mockResolvedValueOnce({
+      data: {
+        ...job,
+        driver_assignments: [
+          {
+            ...job.driver_assignments[0],
+            status: 'en_route',
+          },
+        ],
+      },
+    });
     mockApiPatch.mockResolvedValueOnce({ data: {} });
 
     const { getByText, getAllByText } = renderScreen();

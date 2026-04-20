@@ -1,170 +1,98 @@
-import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { router } from 'expo-router';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import { ActivityIndicator, FlatList } from 'react-native';
+import { ActivityIndicator, Linking } from 'react-native';
 
-import MyScheduleScreen from '../../app/more/schedule';
+import PermissionsScreen from '../../app/more/permissions';
 import { ThemeProvider } from '../../lib/ThemeContext';
-import { Job } from '../../lib/types';
-import { api } from '../../services/api';
 
-jest.mock('expo-router', () => ({
-  router: {
-    push: jest.fn(),
-  },
-}));
+jest.mock('expo-image-picker', () => ({
+  getCameraPermissionsAsync: jest.fn(),
+  getMediaLibraryPermissionsAsync: jest.fn(),
+}), { virtual: true });
 
-jest.mock('../../services/api', () => ({
-  api: {
-    get: jest.fn(),
-  },
-}));
+jest.mock('expo-location', () => ({
+  getForegroundPermissionsAsync: jest.fn(),
+  getBackgroundPermissionsAsync: jest.fn(),
+}), { virtual: true });
 
-const mockApiGet = api.get as jest.Mock;
-
-const dateKey = (d: Date) => d.toISOString().slice(0, 10);
-
-const selectedDayKey = dateKey(new Date());
-const nextDay = new Date();
-nextDay.setDate(nextDay.getDate() + 1);
-const nonSelectedDayKey = dateKey(nextDay);
-
-const makeJob = (id: number, jobDate: string): Job => ({
-  id,
-  job_number: `SCH-${id}`,
-  project: `Schedule Project ${id}`,
-  job_date: jobDate,
-  shift_start: '07:00',
-  material: 'Aggregate',
-  job_foreman_name: 'Taylor Foreman',
-  job_foreman_contact: '555-0111',
-  additional_notes: 'Schedule test fixture',
-  loading_address: 100,
-  unloading_address: 200,
-  loading_address_info: {
-    id: 100,
-    street_address: '100 Riverfront Dr',
-    city: 'Mankato',
-    state: 'MN',
-    zip_code: '56001',
-    country: 'USA',
-    location_name: 'Mankato Yard',
-    location_type: 'yard',
-    latitude: '44.1636',
-    longitude: '-93.9994',
-  },
-  unloading_address_info: {
-    id: 200,
-    street_address: '20 Madison Ave',
-    city: 'North Mankato',
-    state: 'MN',
-    zip_code: '56003',
-    country: 'USA',
-    location_name: 'River Bend Site',
-    location_type: 'jobsite',
-    latitude: '44.1733',
-    longitude: '-94.0338',
-  },
-  backhaul_loading_address_info: null,
-  backhaul_unloading_address_info: null,
-  is_backhaul_enabled: false,
-  driver_assignments: [],
-});
+const imagePicker = require('expo-image-picker');
+const location = require('expo-location');
 
 function renderScreen() {
   return render(
     <ThemeProvider>
-      <MyScheduleScreen />
+      <PermissionsScreen />
     </ThemeProvider>
   );
 }
 
-describe('MyScheduleScreen', () => {
+describe('PermissionsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    location.getForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    location.getBackgroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    imagePicker.getCameraPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    imagePicker.getMediaLibraryPermissionsAsync.mockResolvedValue({ status: 'granted' });
   });
 
   it('renders loading spinner on mount', () => {
-    mockApiGet.mockImplementation(() => new Promise(() => {}));
+    location.getForegroundPermissionsAsync.mockImplementation(() => new Promise(() => {}));
+    location.getBackgroundPermissionsAsync.mockImplementation(() => new Promise(() => {}));
+    imagePicker.getCameraPermissionsAsync.mockImplementation(() => new Promise(() => {}));
+    imagePicker.getMediaLibraryPermissionsAsync.mockImplementation(() => new Promise(() => {}));
 
-    const { UNSAFE_getByType } = renderScreen();
+    const { UNSAFE_getAllByType } = renderScreen();
 
-    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+    expect(UNSAFE_getAllByType(ActivityIndicator).length).toBeGreaterThan(0);
   });
 
-  it('renders jobs for selected day when API returns data', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1, selectedDayKey), makeJob(2, nonSelectedDayKey)] });
+  it('shows denied permissions with Open Settings actions', async () => {
+    location.getBackgroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    imagePicker.getMediaLibraryPermissionsAsync.mockResolvedValue({ status: 'denied' });
 
-    const { getByText, queryByText } = renderScreen();
+    const { getAllByText } = renderScreen();
 
     await waitFor(() => {
-      expect(getByText('SCH-1')).toBeTruthy();
-      expect(getByText('Schedule Project 1')).toBeTruthy();
-      expect(getByText('07:00 · Aggregate')).toBeTruthy();
-      expect(getByText('Mankato')).toBeTruthy();
-      expect(queryByText('SCH-2')).toBeNull();
+      expect(getAllByText('Open Settings')).toHaveLength(2);
     });
   });
 
-  it('renders empty state when no jobs match selected day', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(2, nonSelectedDayKey)] });
-
-    const { getByText, queryByText } = renderScreen();
-
-    await waitFor(() => {
-      expect(getByText('No jobs on this day')).toBeTruthy();
-      expect(queryByText('SCH-2')).toBeNull();
-    });
-  });
-
-  it('shows error state on network failure', async () => {
-    mockApiGet.mockRejectedValueOnce(new Error('Schedule API unavailable'));
+  it('opens system settings when Open Settings is tapped', async () => {
+    location.getForegroundPermissionsAsync.mockResolvedValue({ status: 'denied' });
+    const openSettingsSpy = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
 
     const { getByText } = renderScreen();
 
     await waitFor(() => {
-      expect(getByText('Schedule API unavailable')).toBeTruthy();
-      expect(getByText('Tap to retry')).toBeTruthy();
+      expect(getByText('Open Settings')).toBeTruthy();
     });
-  });
 
-  it('pull-to-refresh calls fetch again', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1, selectedDayKey)] });
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(1, selectedDayKey)] });
-
-    const { UNSAFE_getByType } = renderScreen();
+    fireEvent.press(getByText('Open Settings'));
 
     await waitFor(() => {
-      expect(mockApiGet).toHaveBeenCalledTimes(1);
-      expect(mockApiGet).toHaveBeenNthCalledWith(1, '/drivers/me/jobs/', { params: { upcoming: true } });
+      expect(openSettingsSpy).toHaveBeenCalledTimes(1);
     });
 
-    const list = UNSAFE_getByType(FlatList);
-
-    await act(async () => {
-      await list.props.refreshControl.props.onRefresh();
-    });
-
-    await waitFor(() => {
-      expect(mockApiGet).toHaveBeenCalledTimes(2);
-      expect(mockApiGet).toHaveBeenNthCalledWith(2, '/drivers/me/jobs/', { params: { upcoming: true } });
-    });
+    openSettingsSpy.mockRestore();
   });
 
-  it('navigates to job detail when a schedule card is pressed', async () => {
-    mockApiGet.mockResolvedValueOnce({ data: [makeJob(44, selectedDayKey)] });
-
+  it('refresh status re-checks all permission providers', async () => {
     const { getByText } = renderScreen();
 
     await waitFor(() => {
-      expect(getByText('SCH-44')).toBeTruthy();
+      expect(location.getForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(location.getBackgroundPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(imagePicker.getCameraPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(imagePicker.getMediaLibraryPermissionsAsync).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.press(getByText('SCH-44'));
+    fireEvent.press(getByText('Refresh Status'));
 
-    expect(router.push).toHaveBeenCalledWith({
-      pathname: '/job/[id]',
-      params: { id: 44 },
+    await waitFor(() => {
+      expect(location.getForegroundPermissionsAsync).toHaveBeenCalledTimes(2);
+      expect(location.getBackgroundPermissionsAsync).toHaveBeenCalledTimes(2);
+      expect(imagePicker.getCameraPermissionsAsync).toHaveBeenCalledTimes(2);
+      expect(imagePicker.getMediaLibraryPermissionsAsync).toHaveBeenCalledTimes(2);
     });
   });
 });

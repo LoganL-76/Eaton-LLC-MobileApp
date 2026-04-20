@@ -13,12 +13,24 @@ jest.mock('expo-router', () => ({
   router: {
     push: jest.fn(),
   },
+  useNavigation: () => ({
+    setOptions: jest.fn(),
+  }),
 }));
 
 jest.mock('../../services/api', () => ({
   api: {
     get: jest.fn(),
   },
+}));
+
+jest.mock('../../contexts/ClockContext', () => ({
+  useClock: () => ({
+    isClockedIn: false,
+    clockLoading: false,
+    isTracking: false,
+    handleClockToggle: jest.fn(),
+  }),
 }));
 
 const mockApiGet = api.get as jest.Mock;
@@ -131,19 +143,19 @@ describe('MyJobsScreen', () => {
   });
 
   it('pull-to-refresh calls fetch again', async () => {
-    mockApiGet.mockResolvedValue({ data: [makeJob(1)] });
+    mockApiGet.mockResolvedValue({ data: [] });
 
-    const { UNSAFE_getAllByType } = renderScreen();
+    const { UNSAFE_getAllByType, getByText } = renderScreen();
 
     await waitFor(() => {
       expect(mockApiGet).toHaveBeenCalledTimes(1);
+      expect(getByText('No jobs assigned yet')).toBeTruthy();
     });
 
     const touchables = UNSAFE_getAllByType(TouchableOpacity);
-    const refreshButton = touchables[1];
 
     await act(async () => {
-      await refreshButton.props.onPress();
+      await touchables[0].props.onPress();
     });
 
     await waitFor(() => {
