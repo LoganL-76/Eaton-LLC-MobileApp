@@ -16,7 +16,7 @@ function buildDateStrip(): Date[] {
     const days: Date[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    for (let i = -6; i <= 0; i++) {
+    for (let i = -30; i <= 0; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() + i);
         days.push(d);
@@ -41,6 +41,7 @@ export default function TicketsScreen() {
     const styles = makeStyles(theme);
     const queryClient = useQueryClient();
     const navigation = useNavigation();
+    const stripRef = useRef<ScrollView>(null);
 
     const { isClockedIn, clockLoading, isTracking, handleClockToggle } = useClock();
 
@@ -57,6 +58,7 @@ export default function TicketsScreen() {
     const isToday = selectedDate === todayKey;
 
     const pulseAnim = useRef(new Animated.Value(1)).current;
+
     useEffect(() => {
         if (!isTracking) return;
         const pulse = Animated.loop(
@@ -68,6 +70,29 @@ export default function TicketsScreen() {
         pulse.start();
         return () => pulse.stop();
     }, [isTracking]);
+
+    // scrollview matches arrow movement
+    useEffect(() => {
+        const index = stripDays.findIndex(d => toDateKey(d) === selectedDate);
+        if (index === -1) return;
+        const pillWidth = 64;
+        stripRef.current?.scrollTo({
+            x: index * pillWidth - 120,
+            animated: true,
+        });
+    }, [selectedDate]);
+
+    // makes sure current date shows on navigation
+    useEffect(() => {
+        const todayIndex = stripDays.length - 1;
+        const pillWidth = 64;
+        setTimeout(() => {
+            stripRef.current?.scrollTo({
+                x: todayIndex * pillWidth - 120,
+                animated: false,
+            });
+        }, 0);
+    }, []);
     
 // Clock in button
     useEffect(() => {
@@ -266,7 +291,8 @@ export default function TicketsScreen() {
             </View>
             {/* -- Date Strip for selecting which day's tickets to view -- */}
             <View style={styles.stripWrapper}>
-                <ScrollView 
+                <ScrollView
+                    ref={stripRef}
                     horizontal 
                     showsHorizontalScrollIndicator={false} 
                     contentContainerStyle={styles.stripContent}

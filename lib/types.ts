@@ -47,7 +47,11 @@ export type DriverAssignment = {
     on_site_at: string | null;
     completed_at: string | null;
     assigned_at: string;
-    unassigned_at: string | null; 
+    unassigned_at: string | null;
+    backhaul_status: string | null;
+    backhaul_started_at: string | null;
+    backhaul_on_site_at: string | null;
+    backhaul_completed_at: string | null;
 };
 
 export type Driver = {

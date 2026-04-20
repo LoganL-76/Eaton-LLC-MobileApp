@@ -36,6 +36,17 @@ export default function JobDetailScreen() {
   const [status, setStatus] = useState(
     job?.driver_assignments[0]?.status ?? 'assigned'
   );
+
+  const [backhaulStatus, setBackhaulStatus] = useState(
+    job?.driver_assignments[0]?.backhaul_status ?? 'en_route'
+  );
+
+  const BACKHAUL_STATUS_LABELS = {
+    en_route: 'En Route',
+    on_site: 'On Site',
+    completed: 'Completed',
+  };
+
   const STATUS_LABELS = {
     assigned: 'Assigned',
     en_route: 'En Route',
@@ -47,6 +58,9 @@ export default function JobDetailScreen() {
   useEffect(() => {
     if (job?.driver_assignments[0]?.status) {
       setStatus(job.driver_assignments[0].status);
+    }
+    if (job?.driver_assignments[0]?.backhaul_status) {
+      setBackhaulStatus(job.driver_assignments[0].backhaul_status);
     }
   }, [job]);
 
@@ -136,6 +150,85 @@ export default function JobDetailScreen() {
         if (selectedIndex === undefined || selectedIndex === cancelButtonIndex) return;
         const values = ['en_route', 'on_site', 'completed'];
         updateStatus(values[selectedIndex]);
+      }
+    );
+  };
+
+      const updateBackhaulStatus = async (newStatus: string) => {
+      const assignmentId = job?.driver_assignments[0]?.id;
+      if (!assignmentId) return;
+
+      if (!isClockedIn) {
+        Alert.alert(
+          'Not Clocked In',
+          'You need to be clocked in to update job status. Would you like to clock in now?',
+          [
+            {
+              text: 'Clock In',
+              onPress: async () => {
+                await handleClockToggle();
+                updateBackhaulStatus(newStatus);
+              },
+            },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        return;
+      }
+
+      const previousStatus = backhaulStatus;
+      setBackhaulStatus(newStatus);
+
+      const { isConnected } = await NetInfo.fetch();
+
+      if (!isConnected) {
+        try {
+          await enqueueAction(
+            buildQueuedStatusUpdateAction(assignmentId, newStatus, previousStatus ?? 'en_route')
+          );
+        } catch {
+          setBackhaulStatus(previousStatus);
+          Alert.alert(
+            'Failed to update status',
+            'Unable to save the backhaul status update for offline sync. Please try again.'
+          );
+        }
+        return;
+      }
+
+      try {
+        await api.patch(
+          `/job-driver-assignments/${assignmentId}/backhaul-status/`,
+          { status: newStatus }
+        );
+        await fetchJob();
+      } catch (err: any) {
+        setBackhaulStatus(previousStatus);
+        if (isStatusSyncConflict(err)) {
+          Alert.alert(
+            'Sync Conflict',
+            'This backhaul status was already changed by dispatch. Please refresh and review before trying again.'
+          );
+          await fetchJob();
+          return;
+        }
+        Alert.alert(
+          'Failed to update status',
+          err.message ?? 'An error occurred while updating the backhaul status. Please try again.'
+        );
+      }
+    };
+
+  const openBackhaulStatusPicker = () => {
+    const options = ['En Route', 'On Site', 'Completed', 'Cancel'];
+    const cancelButtonIndex = 3;
+
+    showActionSheetWithOptions(
+      { options, cancelButtonIndex },
+      (selectedIndex) => {
+        if (selectedIndex === undefined || selectedIndex === cancelButtonIndex) return;
+        const values = ['en_route', 'on_site', 'completed'];
+        updateBackhaulStatus(values[selectedIndex]);
       }
     );
   };
@@ -248,6 +341,58 @@ export default function JobDetailScreen() {
             ))}
           </View>
         </View>
+
+        {/* Backhaul Status */}
+        {job.is_backhaul_enabled && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Backhaul Status</Text>
+            <TouchableOpacity onPress={openBackhaulStatusPicker} style={styles.statusButton}>
+              <Text style={styles.statusButtonText}>
+                {BACKHAUL_STATUS_LABELS[backhaulStatus as keyof typeof BACKHAUL_STATUS_LABELS] ?? 'Not Started'}
+              </Text>
+              <MaterialIcons name="expand-more" size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+
+            <View style={styles.statusTimeline}>
+              {[
+                { label: 'En Route', time: job.driver_assignments[0]?.backhaul_started_at },
+                { label: 'On Site', time: job.driver_assignments[0]?.backhaul_on_site_at },
+                { label: 'Completed', time: job.driver_assignments[0]?.backhaul_completed_at },
+              ].map(({ label, time }) => (
+                <View key={label} style={styles.timelineRow}>
+                  <Text style={styles.timelineLabel}>{label}</Text>
+                  <Text style={styles.timelineValue}>
+                    {time ? new Date(time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--'}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Backhaul Addresses */}
+            <Text style={[styles.sectionTitle, { marginTop: 8 }]}>Backhaul Addresses</Text>
+            <Text style={styles.label}>Loading</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <TouchableOpacity style={{ flex: 1 }} onPress={() => openMaps(job.backhaul_loading_address_info!.latitude, job.backhaul_loading_address_info!.longitude, job.backhaul_loading_address_info!.location_name)}>
+                <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.backhaul_loading_address_info!.location_name}</Text>
+                <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.backhaul_loading_address_info!.street_address}, {job.backhaul_loading_address_info!.city}, {job.backhaul_loading_address_info!.state}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ marginLeft: 12 }} onPress={() => copyAddress(`${job.backhaul_loading_address_info!.street_address}, ${job.backhaul_loading_address_info!.city}, ${job.backhaul_loading_address_info!.state}`)}>
+                <MaterialIcons name="content-copy" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Unloading</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <TouchableOpacity style={{ flex: 1 }} onPress={() => openMaps(job.backhaul_unloading_address_info!.latitude, job.backhaul_unloading_address_info!.longitude, job.backhaul_unloading_address_info!.location_name)}>
+                <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.backhaul_unloading_address_info!.location_name}</Text>
+                <Text style={[styles.detail, { color: theme.colors.primary }]}>{job.backhaul_unloading_address_info!.street_address}, {job.backhaul_unloading_address_info!.city}, {job.backhaul_unloading_address_info!.state}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ marginLeft: 12 }} onPress={() => copyAddress(`${job.backhaul_unloading_address_info!.street_address}, ${job.backhaul_unloading_address_info!.city}, ${job.backhaul_unloading_address_info!.state}`)}>
+                <MaterialIcons name="content-copy" size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
         
         {/* Notes */}
         <View style={styles.section}>
