@@ -50,27 +50,46 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
 // Returns true if tracking started successfully, false if permissions were denied
 export async function startLocationTracking(): Promise<boolean> {
     // Foreground permission must be granted before we can ask for background
-    const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
-    if (fgStatus !== 'granted') return false;
+    try {
+        const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
+        if (fgStatus !== 'granted') return false;
+    } catch {
+        return false;
+    }
 
-    const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
-    if (bgStatus !== 'granted') return false;
+    let hasBackgroundPermission = false;
+    try {
+        const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+        hasBackgroundPermission = bgStatus === 'granted';
+    } catch {
+        // Background permission setup may be unavailable in some dev builds.
+        // Clock-in should still succeed and foreground usage can continue.
+        hasBackgroundPermission = false;
+    }
 
-    await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.Balanced, // Street-level, not GPS-exact
-        timeInterval: 30000, // ping every 30 seconds
-        distanceInterval: 0, // time-based only, not distance based
-        // iOS: shows the blue bar at the top so the driver know tracking is active
-        showsBackgroundLocationIndicator: true,
-        // Android: required to keep the task alive when app is backgrounded
-        foregroundService: { 
-            notificationTitle: 'Location Tracking Active',
-            notificationBody: 'Your location is being shared with dispatch',
-            notificationColor: '#2469FF',
-        },
-    });
+    try {
+        if (hasBackgroundPermission) {
+            await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+                accuracy: Location.Accuracy.Balanced, // Street-level, not GPS-exact
+                timeInterval: 30000, // ping every 30 seconds
+                distanceInterval: 0, // time-based only, not distance based
+                // iOS: shows the blue bar at the top so the driver know tracking is active
+                showsBackgroundLocationIndicator: true,
+                // Android: required to keep the task alive when app is backgrounded
+                foregroundService: {
+                    notificationTitle: 'Location Tracking Active',
+                    notificationBody: 'Your location is being shared with dispatch',
+                    notificationColor: '#2469FF',
+                },
+            });
+            return true;
+        }
+    } catch {
+        // If background task start fails, do not block clock-in.
+        return false;
+    }
 
-    return true;
+    return false;
 }
 
 // Stops the background location task if it's currently runnin.

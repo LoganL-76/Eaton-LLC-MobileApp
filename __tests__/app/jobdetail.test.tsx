@@ -164,17 +164,6 @@ describe('JobDetailScreen', () => {
   it('calls PATCH when status is updated', async () => {
     const job = makeJob();
     mockApiGet.mockResolvedValueOnce({ data: job });
-    mockApiGet.mockResolvedValueOnce({
-      data: {
-        ...job,
-        driver_assignments: [
-          {
-            ...job.driver_assignments[0],
-            status: 'en_route',
-          },
-        ],
-      },
-    });
     mockApiPatch.mockResolvedValueOnce({ data: {} });
 
     const { getByText, getAllByText } = renderScreen();
@@ -191,6 +180,7 @@ describe('JobDetailScreen', () => {
         status: 'en_route',
         expected_status: 'assigned',
       });
+      expect(mockApiGet).toHaveBeenCalledTimes(1);
       expect(getAllByText('En Route').length).toBeGreaterThan(0);
     });
   });
