@@ -5,7 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { AlertButton } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useClock } from '../../contexts/ClockContext';
 import { enqueueAction } from '../../lib/offlineQueue';
 import { buildQueuedStatusUpdateAction, buildStatusUpdatePayload } from '../../lib/statusUpdatePayload';
@@ -256,16 +257,27 @@ export default function JobDetailScreen() {
 
   // Pop up to choose maps app when address is tapped
   const openMaps = (latitude: string, longitude: string, label: string) => {
-    Alert.alert(
-      'Open in Maps',
-      label,
-      [
-        { text: 'Google Maps', onPress: () => Linking.openURL(`https://maps.google.com/?q=${latitude},${longitude}`) },
-        { text: 'Apple Maps', onPress: () => Linking.openURL(`maps://?q=${latitude},${longitude}`) },
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
-  };
+  const options: AlertButton[] = [
+    {
+      text: 'Google Maps',
+      onPress: () =>
+        Linking.openURL(`https://maps.google.com/?q=${latitude},${longitude}`),
+    },
+  ];
+
+  // Only add Apple Maps on iOS
+  if (Platform.OS === 'ios') {
+    options.push({
+      text: 'Apple Maps',
+      onPress: () =>
+        Linking.openURL(`maps://?q=${latitude},${longitude}`),
+    });
+  }
+
+  options.push({ text: 'Cancel', style: 'cancel' });
+
+  Alert.alert('Open in Maps', label, options);
+};
 
   // Helper function to copy addresses to clipboard
   const copyAddress = async (address: string) => {
