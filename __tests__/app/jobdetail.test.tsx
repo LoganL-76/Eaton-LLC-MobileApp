@@ -105,15 +105,15 @@ const makeJob = (): Job => ({
   ],
 });
 
-function renderScreen() {
-  const queryClient = new QueryClient({
+function renderScreen(queryClient?: QueryClient) {
+  const client = queryClient ?? new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0 },
     },
   });
 
   return render(
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={client}>
       <ThemeProvider>
         <JobDetailScreen />
       </ThemeProvider>
@@ -262,5 +262,25 @@ describe('JobDetailScreen', () => {
     expect(openUrlSpy).toHaveBeenCalledWith('tel:555-2200');
 
     openUrlSpy.mockRestore();
+  });
+
+  it('keeps rendering cached job data when refetch fails offline', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: 0 },
+      },
+    });
+
+    queryClient.setQueryData(['job', '123'], makeJob());
+    mockApiGet.mockRejectedValueOnce(new Error('Network Error'));
+
+    const { getByText, queryByText } = renderScreen(queryClient);
+
+    await waitFor(() => {
+      expect(mockApiGet).toHaveBeenCalledWith('/jobs/123/');
+    });
+
+    expect(getByText('JOB-123')).toBeTruthy();
+    expect(queryByText('Network Error')).toBeNull();
   });
 });

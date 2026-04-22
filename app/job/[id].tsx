@@ -317,7 +317,7 @@ export default function JobDetailScreen() {
     );
   };
   
-  if (loading) {
+  if (loading && !job) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -325,7 +325,8 @@ export default function JobDetailScreen() {
     );
   }
 
-  if (error || !job) {
+  // If a background refetch fails (for example while offline), keep showing cached job data.
+  if (!job) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background, gap: 12 }}>
         <Text style={{ color: theme.colors.textSecondary }}>{(error as any)?.message ?? 'Job not found.'}</Text>
