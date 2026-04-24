@@ -16,6 +16,7 @@ export type QueuedAction =
         assignmentId: number;
         status: string;
         expectedStatus: string;
+        occurredAt: string;
         queuedAt: string;
       }
     | {

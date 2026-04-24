@@ -29,6 +29,7 @@ describe('offlineQueue', () => {
       assignmentId: 42,
       status: 'en_route',
       expectedStatus: 'assigned',
+      occurredAt: '2026-04-22T14:00:00.000Z',
     });
 
     const queue = await getQueue();
@@ -39,9 +40,11 @@ describe('offlineQueue', () => {
       assignmentId: 42,
       status: 'en_route',
       expectedStatus: 'assigned',
+      occurredAt: '2026-04-22T14:00:00.000Z',
     });
 
     expect((AsyncStorage.setItem as jest.Mock).mock.calls[0][1]).toContain('"expectedStatus":"assigned"');
+    expect((AsyncStorage.setItem as jest.Mock).mock.calls[0][1]).toContain('"occurredAt":"2026-04-22T14:00:00.000Z"');
   });
 
   it('removes a single queued action by id', async () => {
@@ -50,12 +53,14 @@ describe('offlineQueue', () => {
       assignmentId: 1,
       status: 'en_route',
       expectedStatus: 'assigned',
+      occurredAt: '2026-04-22T14:00:00.000Z',
     });
     await enqueueAction({
       type: 'status_update',
       assignmentId: 2,
       status: 'completed',
       expectedStatus: 'on_site',
+      occurredAt: '2026-04-22T14:10:00.000Z',
     });
 
     const queue = await getQueue();
@@ -76,6 +81,7 @@ describe('offlineQueue', () => {
       assignmentId: 7,
       status: 'completed',
       expectedStatus: 'on_site',
+      occurredAt: '2026-04-22T14:00:00.000Z',
     });
 
     await clearQueue();

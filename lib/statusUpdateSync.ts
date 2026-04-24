@@ -1,6 +1,6 @@
 import type { QueuedAction } from './offlineQueue';
-import { isStatusSyncConflict } from './syncConflicts';
 import { buildStatusUpdatePayload } from './statusUpdatePayload';
+import { isStatusSyncConflict } from './syncConflicts';
 
 type ReplayAction = Extract<QueuedAction, { type: 'status_update' }>;
 
@@ -9,6 +9,7 @@ type ReplayDependencies = {
     assignmentId: number,
     payload: ReturnType<typeof buildStatusUpdatePayload>
   ) => Promise<unknown>;
+  onSuccess: (action: ReplayAction, response: unknown) => void | Promise<void>;
   removeAction: (id: string) => Promise<void>;
   onConflict: (action: ReplayAction, error: unknown) => void | Promise<void>;
   onTransientFailure: (action: ReplayAction, error: unknown) => void;
@@ -23,10 +24,11 @@ export async function replayQueuedStatusUpdates(
     if (action.type !== 'status_update') continue;
 
     try {
-      await dependencies.patchStatus(
+      const response = await dependencies.patchStatus(
         action.assignmentId,
-        buildStatusUpdatePayload(action.status, action.expectedStatus)
+        buildStatusUpdatePayload(action.status, action.expectedStatus, action.occurredAt)
       );
+      await dependencies.onSuccess(action, response);
       await dependencies.removeAction(action.id);
     } catch (error) {
       if (isStatusSyncConflict(error as { response?: { status?: number; data?: unknown } })) {

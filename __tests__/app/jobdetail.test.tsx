@@ -105,15 +105,15 @@ const makeJob = (): Job => ({
   ],
 });
 
-function renderScreen() {
-  const queryClient = new QueryClient({
+function renderScreen(queryClient?: QueryClient) {
+  const client = queryClient ?? new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0 },
     },
   });
 
   return render(
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={client}>
       <ThemeProvider>
         <JobDetailScreen />
       </ThemeProvider>
@@ -164,9 +164,17 @@ describe('JobDetailScreen', () => {
   it('calls PATCH when status is updated', async () => {
     const job = makeJob();
     mockApiGet.mockResolvedValueOnce({ data: job });
-    mockApiPatch.mockResolvedValueOnce({ data: {} });
+    mockApiPatch.mockResolvedValueOnce({
+      data: {
+        id: 77,
+        status: 'en_route',
+        started_at: '2026-03-28T14:30:00Z',
+        on_site_at: null,
+        completed_at: null,
+      },
+    });
 
-    const { getByText, getAllByText } = renderScreen();
+    const { getAllByText } = renderScreen();
 
     await waitFor(() => {
       expect(getAllByText('Assigned').length).toBeGreaterThan(0);
@@ -176,10 +184,14 @@ describe('JobDetailScreen', () => {
 
     await waitFor(() => {
       expect(mockShowActionSheetWithOptions).toHaveBeenCalled();
-      expect(mockApiPatch).toHaveBeenCalledWith('/job-driver-assignments/77/status/', {
-        status: 'en_route',
-        expected_status: 'assigned',
-      });
+      expect(mockApiPatch).toHaveBeenCalledWith(
+        '/job-driver-assignments/77/status/',
+        expect.objectContaining({
+          status: 'en_route',
+          expected_status: 'assigned',
+          occurred_at: expect.any(String),
+        })
+      );
       expect(mockApiGet).toHaveBeenCalledTimes(1);
       expect(getAllByText('En Route').length).toBeGreaterThan(0);
     });
@@ -200,10 +212,14 @@ describe('JobDetailScreen', () => {
     fireEvent.press(getAllByText('Assigned')[0]);
 
     await waitFor(() => {
-      expect(mockApiPatch).toHaveBeenCalledWith('/job-driver-assignments/77/status/', {
-        status: 'en_route',
-        expected_status: 'assigned',
-      });
+      expect(mockApiPatch).toHaveBeenCalledWith(
+        '/job-driver-assignments/77/status/',
+        expect.objectContaining({
+          status: 'en_route',
+          expected_status: 'assigned',
+          occurred_at: expect.any(String),
+        })
+      );
       expect(getAllByText('Assigned').length).toBeGreaterThan(0);
       expect(alertSpy).toHaveBeenCalledWith(
         'Failed to update status',
@@ -262,5 +278,25 @@ describe('JobDetailScreen', () => {
     expect(openUrlSpy).toHaveBeenCalledWith('tel:555-2200');
 
     openUrlSpy.mockRestore();
+  });
+
+  it('keeps rendering cached job data when refetch fails offline', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: 0 },
+      },
+    });
+
+    queryClient.setQueryData(['job', '123'], makeJob());
+    mockApiGet.mockRejectedValueOnce(new Error('Network Error'));
+
+    const { getByText, queryByText } = renderScreen(queryClient);
+
+    await waitFor(() => {
+      expect(mockApiGet).toHaveBeenCalledWith('/jobs/123/');
+    });
+
+    expect(getByText('JOB-123')).toBeTruthy();
+    expect(queryByText('Network Error')).toBeNull();
   });
 });
