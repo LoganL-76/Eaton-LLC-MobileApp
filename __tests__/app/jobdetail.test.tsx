@@ -97,6 +97,10 @@ const makeJob = (): Job => ({
       completed_at: null,
       assigned_at: '2026-03-28T13:00:00Z',
       unassigned_at: null,
+      backhaul_status: null,
+      backhaul_started_at: null,
+      backhaul_on_site_at: null,
+      backhaul_completed_at: null,
     },
   ],
 });
@@ -160,17 +164,6 @@ describe('JobDetailScreen', () => {
   it('calls PATCH when status is updated', async () => {
     const job = makeJob();
     mockApiGet.mockResolvedValueOnce({ data: job });
-    mockApiGet.mockResolvedValueOnce({
-      data: {
-        ...job,
-        driver_assignments: [
-          {
-            ...job.driver_assignments[0],
-            status: 'en_route',
-          },
-        ],
-      },
-    });
     mockApiPatch.mockResolvedValueOnce({ data: {} });
 
     const { getByText, getAllByText } = renderScreen();
@@ -187,6 +180,7 @@ describe('JobDetailScreen', () => {
         status: 'en_route',
         expected_status: 'assigned',
       });
+      expect(mockApiGet).toHaveBeenCalledTimes(1);
       expect(getAllByText('En Route').length).toBeGreaterThan(0);
     });
   });

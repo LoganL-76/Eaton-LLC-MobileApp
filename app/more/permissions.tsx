@@ -76,7 +76,7 @@ export default function PermissionsScreen() {
       </TouchableOpacity>
 
       <Text style={styles.hint}>
-        To change a permission, tap "Open Settings", update the permission, then come back and tap "Refresh Status".
+        To change a permission, tap Open Settings, update the permission, then come back and tap Refresh Status.
       </Text>
     </ScrollView>
   );

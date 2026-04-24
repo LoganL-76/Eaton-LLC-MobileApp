@@ -24,7 +24,8 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
+        "ACCESS_BACKGROUND_LOCATION",
+        "WAKE_LOCK"
       ]
     },
     "web": {
@@ -41,7 +42,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Your location is shared with dispatch while you are clocked in."
+          "locationAlwaysAndWhenInUsePermission": "Your location is shared with dispatch while you are clocked in.",
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       [

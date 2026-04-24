@@ -44,7 +44,7 @@ export default function MoreScreen() {
             </View>
 
             <Text style={styles.sectionLabel}>APP</Text>
-            <TouchableOpacity style={styles.row} onPress={() => router.push('/more/permissions')}>
+            <TouchableOpacity style={styles.row} onPress={() => router.push('../more/permissions')}>
                 <MaterialIcons name="tune" size={20} color={theme.colors.textSecondary} style={{ marginRight: theme.spacing.sm }} />
                 <Text style={styles.rowLabel}>Permissions</Text>
                 <Text style={styles.rowChevron}>›</Text>

@@ -1,11 +1,12 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { AlertButton } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useClock } from '../../contexts/ClockContext';
 import { enqueueAction } from '../../lib/offlineQueue';
 import { buildQueuedStatusUpdateAction, buildStatusUpdatePayload } from '../../lib/statusUpdatePayload';
@@ -18,19 +19,22 @@ import { api } from '../../services/api';
 // It fetches job details from the backend using the job ID from the route params.
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams();
+  const jobId = Array.isArray(id) ? id[0] : id;
   const { theme } = useTheme();
   const styles = makeStyles(theme);
   const { showActionSheetWithOptions } = useActionSheet();
   const {isClockedIn, handleClockToggle } = useClock();
+  const queryClient = useQueryClient();
   
   // useQuery cahces each job individually by its ID
   // Opening a job detail while offline will show the last cached version automatically
   const { data: job, isLoading: loading, error, refetch: fetchJob } = useQuery({
-    queryKey: ['job', id],
+    queryKey: ['job', jobId],
     queryFn: async () => {
-      const res = await api.get(`/jobs/${id}/`);
+      const res = await api.get(`/jobs/${jobId}/`);
       return res.data as Job;
-    }
+    },
+    enabled: Boolean(jobId),
   });
   
   const [status, setStatus] = useState(
@@ -64,14 +68,78 @@ export default function JobDetailScreen() {
     }
   }, [job]);
 
+  const setCachedAssignmentStatus = (newStatus: string) => {
+    if (!jobId) return;
+
+    queryClient.setQueryData<Job>(['job', jobId], (cachedJob) => {
+      if (!cachedJob?.driver_assignments?.length) return cachedJob;
+
+      return {
+        ...cachedJob,
+        driver_assignments: cachedJob.driver_assignments.map((assignment, index) =>
+          index === 0 ? { ...assignment, status: newStatus } : assignment
+        ),
+      };
+    });
+
+    queryClient.setQueryData<Job[]>(['jobs'], (cachedJobs) => {
+      if (!Array.isArray(cachedJobs)) return cachedJobs;
+
+      return cachedJobs.map((cachedJob) => {
+        if (String(cachedJob.id) !== String(jobId) || !cachedJob.driver_assignments?.length) {
+          return cachedJob;
+        }
+
+        return {
+          ...cachedJob,
+          driver_assignments: cachedJob.driver_assignments.map((assignment, index) =>
+            index === 0 ? { ...assignment, status: newStatus } : assignment
+          ),
+        };
+      });
+    });
+  };
+
+  const setCachedBackhaulStatus = (newStatus: string) => {
+    if (!jobId) return;
+
+    queryClient.setQueryData<Job>(['job', jobId], (cachedJob) => {
+      if (!cachedJob?.driver_assignments?.length) return cachedJob;
+
+      return {
+        ...cachedJob,
+        driver_assignments: cachedJob.driver_assignments.map((assignment, index) =>
+          index === 0 ? { ...assignment, backhaul_status: newStatus } : assignment
+        ),
+      };
+    });
+
+    queryClient.setQueryData<Job[]>(['jobs'], (cachedJobs) => {
+      if (!Array.isArray(cachedJobs)) return cachedJobs;
+
+      return cachedJobs.map((cachedJob) => {
+        if (String(cachedJob.id) !== String(jobId) || !cachedJob.driver_assignments?.length) {
+          return cachedJob;
+        }
+
+        return {
+          ...cachedJob,
+          driver_assignments: cachedJob.driver_assignments.map((assignment, index) =>
+            index === 0 ? { ...assignment, backhaul_status: newStatus } : assignment
+          ),
+        };
+      });
+    });
+  };
+
 
   // grabs status through driver assignmets
-  const updateStatus = async (newStatus: string) => {
+  const updateStatus = async (newStatus: string, skipClockCheck = false) => {
     const assignmentId = job?.driver_assignments[0]?.id;
     if (!assignmentId) return;
 
     // gate on clock status before anything else
-    if (!isClockedIn) {
+    if (!isClockedIn && !skipClockCheck) {
       Alert.alert(
         'Not Clocked In',
         'You need to be clocked in to update job status. Would you like to clock in now?',
@@ -79,9 +147,11 @@ export default function JobDetailScreen() {
           {
             text: 'Clock In',
             onPress: async() => {
-              await handleClockToggle();
-              // After clocking in, proceed with the status update automatically
-              updateStatus(newStatus);
+              const clockedInSuccessfully = await handleClockToggle();
+              // Avoid re-entering this same prompt while clock state is still propagating.
+              if (clockedInSuccessfully) {
+                updateStatus(newStatus, true);
+              }
             },
           },
           { text: 'Cancel', style: 'cancel'},
@@ -94,6 +164,7 @@ export default function JobDetailScreen() {
     // 'Optimistic update' - we assume success and roll back if the API call fails
     const previousStatus = status;
     setStatus(newStatus);
+    setCachedAssignmentStatus(newStatus);
 
     // Check connectivity before deciding whether to call the API or queue the action
     const { isConnected } = await NetInfo.fetch();
@@ -106,6 +177,7 @@ export default function JobDetailScreen() {
         );
       } catch {
         setStatus(previousStatus);
+        setCachedAssignmentStatus(previousStatus);
         Alert.alert(
           'Failed to update status',
           'Unable to save the status update for offline sync. Please try again.'
@@ -119,10 +191,14 @@ export default function JobDetailScreen() {
         `/job-driver-assignments/${assignmentId}/status/`,
         buildStatusUpdatePayload(newStatus, previousStatus)
       );
-      await fetchJob();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['job', jobId], refetchType: 'none' }),
+        queryClient.invalidateQueries({ queryKey: ['jobs'], refetchType: 'none' }),
+      ]);
     } catch (err: any){
       // Server rejected it - roll back the optimistic update and show an error
       setStatus(previousStatus);
+      setCachedAssignmentStatus(previousStatus);
       if (isStatusSyncConflict(err)) {
         Alert.alert(
           'Sync Conflict',
@@ -154,11 +230,11 @@ export default function JobDetailScreen() {
     );
   };
 
-      const updateBackhaulStatus = async (newStatus: string) => {
+      const updateBackhaulStatus = async (newStatus: string, skipClockCheck = false) => {
       const assignmentId = job?.driver_assignments[0]?.id;
       if (!assignmentId) return;
 
-      if (!isClockedIn) {
+      if (!isClockedIn && !skipClockCheck) {
         Alert.alert(
           'Not Clocked In',
           'You need to be clocked in to update job status. Would you like to clock in now?',
@@ -166,8 +242,10 @@ export default function JobDetailScreen() {
             {
               text: 'Clock In',
               onPress: async () => {
-                await handleClockToggle();
-                updateBackhaulStatus(newStatus);
+                const clockedInSuccessfully = await handleClockToggle();
+                if (clockedInSuccessfully) {
+                  updateBackhaulStatus(newStatus, true);
+                }
               },
             },
             { text: 'Cancel', style: 'cancel' },
@@ -178,6 +256,7 @@ export default function JobDetailScreen() {
 
       const previousStatus = backhaulStatus;
       setBackhaulStatus(newStatus);
+      setCachedBackhaulStatus(newStatus);
 
       const { isConnected } = await NetInfo.fetch();
 
@@ -188,6 +267,7 @@ export default function JobDetailScreen() {
           );
         } catch {
           setBackhaulStatus(previousStatus);
+          setCachedBackhaulStatus(previousStatus);
           Alert.alert(
             'Failed to update status',
             'Unable to save the backhaul status update for offline sync. Please try again.'
@@ -201,9 +281,13 @@ export default function JobDetailScreen() {
           `/job-driver-assignments/${assignmentId}/backhaul-status/`,
           { status: newStatus }
         );
-        await fetchJob();
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['job', jobId], refetchType: 'none' }),
+          queryClient.invalidateQueries({ queryKey: ['jobs'], refetchType: 'none' }),
+        ]);
       } catch (err: any) {
         setBackhaulStatus(previousStatus);
+        setCachedBackhaulStatus(previousStatus);
         if (isStatusSyncConflict(err)) {
           Alert.alert(
             'Sync Conflict',
@@ -256,16 +340,27 @@ export default function JobDetailScreen() {
 
   // Pop up to choose maps app when address is tapped
   const openMaps = (latitude: string, longitude: string, label: string) => {
-    Alert.alert(
-      'Open in Maps',
-      label,
-      [
-        { text: 'Google Maps', onPress: () => Linking.openURL(`https://maps.google.com/?q=${latitude},${longitude}`) },
-        { text: 'Apple Maps', onPress: () => Linking.openURL(`maps://?q=${latitude},${longitude}`) },
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
-  };
+  const options: AlertButton[] = [
+    {
+      text: 'Google Maps',
+      onPress: () =>
+        Linking.openURL(`https://maps.google.com/?q=${latitude},${longitude}`),
+    },
+  ];
+
+  // Only add Apple Maps on iOS
+  if (Platform.OS === 'ios') {
+    options.push({
+      text: 'Apple Maps',
+      onPress: () =>
+        Linking.openURL(`maps://?q=${latitude},${longitude}`),
+    });
+  }
+
+  options.push({ text: 'Cancel', style: 'cancel' });
+
+  Alert.alert('Open in Maps', label, options);
+};
 
   // Helper function to copy addresses to clipboard
   const copyAddress = async (address: string) => {

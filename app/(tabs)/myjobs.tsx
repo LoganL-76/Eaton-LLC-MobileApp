@@ -48,7 +48,7 @@ export default function MyJobsScreen() {
           {
             text: 'Submit Tickets',
             onPress: async () => {
-              router.push('/(tabs)/tickets');
+              router.push('./tickets');
             },
           },
           {
@@ -79,24 +79,17 @@ export default function MyJobsScreen() {
   const navigation = useNavigation();
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <View style= {{ flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 12}}>
-          {/* Live tracking indicator - visible when tracking is active */}
-          {isTracking && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4}}>
-              <Animated.View style = {{
-                width: 6, 
-                height: 6, 
-                borderRadius: 3,
-                backgroundColor: theme.colors.error,
-                opacity: pulseAnim,
-              }} />
-              <Text style={{ fontSize: theme.fontSize.xs, color: theme.colors.error, fontWeight: theme.fontWeight.semibold }}>
-                LIVE
-              </Text>
+      headerLeft: () =>
+        isTracking ? (
+          <View style={{ marginLeft: 12 }}>
+            <View style={styles.liveBadge}>
+              <Animated.View style={[styles.liveDot, { opacity: pulseAnim }]} />
+              <Text style={styles.liveText}>LIVE</Text>
             </View>
-          )}
-
+          </View>
+        ) : null,
+      headerRight: () => (
+        <View style= {{ flexDirection: 'row', alignItems: 'center', marginRight: 4}}>
         <TouchableOpacity
           onPress = {handleClockOutPrompt}
           disabled={clockLoading}
@@ -105,10 +98,9 @@ export default function MyJobsScreen() {
             alignItems: 'center',
             gap: 6,
             backgroundColor: '#ffffff',
-            paddingHorizontal: 12,
+            paddingHorizontal: 10,
             paddingVertical: 6,
             borderRadius: 20,
-            marginRight: 12,
             borderWidth: 4,
             borderColor: isClockedIn ? theme.colors.error : theme.colors.success,
           }}
@@ -243,6 +235,28 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     lastRefreshText: {
       fontSize: theme.fontSize.sm,
       color: theme.colors.textSecondary,
+    },
+    liveBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+      borderWidth: 1,
+      borderColor: 'rgba(239, 68, 68, 0.55)',
+      borderRadius: 999,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+    },
+    liveDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.colors.error,
+    },
+    liveText: {
+      fontSize: theme.fontSize.xs,
+      fontWeight: theme.fontWeight.bold,
+      color: theme.colors.error,
     },
     errorContainer: {
       flex: 1,
