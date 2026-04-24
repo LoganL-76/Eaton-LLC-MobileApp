@@ -2,6 +2,7 @@ import { ClockProvider } from "@/contexts/ClockContext";
 import { asyncStoragePersister, queryClient } from "@/lib/queryClient";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import NetInfo from "@react-native-community/netinfo";
+import { useQueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
@@ -32,7 +33,9 @@ Notifications.setNotificationHandler({
 
 function AppInitializer() {
   const { isAuthenticated, isLoading } = useAuth();
+  const queryClient = useQueryClient();
   const notificationListener = useRef<ReturnType<typeof Notifications.addNotificationReceivedListener> | null>(null);
+  
   const responseListener = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null);
   const lastHandledResponseId = useRef<string | null>(null);
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
@@ -115,9 +118,12 @@ function AppInitializer() {
         handleNotificationResponse(response);
       });
 
+
       notificationListener.current = Notifications.addNotificationReceivedListener(() => {
-        // Foreground notification received
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       });
+
+      
 
       responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
         handleNotificationResponse(response);
