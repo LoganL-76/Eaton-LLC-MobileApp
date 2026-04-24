@@ -14,6 +14,7 @@ import "../lib/locationTracking";
 import { getQueue, removeAction } from "../lib/offlineQueue";
 import { replayQueuedStatusUpdates } from "../lib/statusUpdateSync";
 import { ThemeProvider } from "../lib/ThemeContext";
+import { DriverAssignment, Job } from "../lib/types";
 import { api } from "../services/api";
 
 Notifications.setNotificationHandler({
@@ -136,6 +137,118 @@ export default function RootLayout() {
   const isSyncing = useRef(false);
   const [isOffline, setIsOffline] = useState(false);
 
+  const extractUpdatedAssignment = (responseData: unknown): Partial<DriverAssignment> | null => {
+    if (!responseData || typeof responseData !== "object") return null;
+
+    const responseObject = responseData as Record<string, any>;
+
+    if (responseObject.assignment && typeof responseObject.assignment === "object") {
+      return responseObject.assignment as Partial<DriverAssignment>;
+    }
+
+    if (responseObject.driver_assignment && typeof responseObject.driver_assignment === "object") {
+      return responseObject.driver_assignment as Partial<DriverAssignment>;
+    }
+
+    if (Array.isArray(responseObject.driver_assignments) && responseObject.driver_assignments[0]) {
+      return responseObject.driver_assignments[0] as Partial<DriverAssignment>;
+    }
+
+    if (
+      "id" in responseObject ||
+      "status" in responseObject ||
+      "started_at" in responseObject ||
+      "on_site_at" in responseObject ||
+      "completed_at" in responseObject
+    ) {
+      return responseObject as Partial<DriverAssignment>;
+    }
+
+    return null;
+  };
+
+  const getStatusTimestampField = (assignmentStatus: string): "started_at" | "on_site_at" | "completed_at" | null => {
+    switch (assignmentStatus) {
+      case "en_route":
+        return "started_at";
+      case "on_site":
+        return "on_site_at";
+      case "completed":
+        return "completed_at";
+      default:
+        return null;
+    }
+  };
+
+  const mergeAssignmentIntoJob = (
+    cachedJob: Job | undefined,
+    assignmentId: number,
+    updatedAssignment: Partial<DriverAssignment>
+  ): Job | undefined => {
+    if (!cachedJob?.driver_assignments?.length) return cachedJob;
+
+    const normalizedUpdatedAssignmentId =
+      updatedAssignment.id !== undefined && updatedAssignment.id !== null
+        ? String(updatedAssignment.id)
+        : String(assignmentId);
+
+    let foundMatch = false;
+    const nextAssignments = cachedJob.driver_assignments.map((assignment) => {
+      const shouldUpdate =
+        String(assignment.id) === String(assignmentId) ||
+        String(assignment.id) === normalizedUpdatedAssignmentId;
+
+      if (!shouldUpdate) return assignment;
+
+      foundMatch = true;
+      return { ...assignment, ...updatedAssignment };
+    });
+
+    if (!foundMatch) return cachedJob;
+
+    return {
+      ...cachedJob,
+      driver_assignments: nextAssignments,
+    };
+  };
+
+  const mergeSyncedStatusUpdateIntoCache = (
+    assignmentId: number,
+    responseData: unknown,
+    occurredAt: string
+  ) => {
+    const updatedAssignment = extractUpdatedAssignment(responseData);
+    if (!updatedAssignment) return;
+
+    const normalizedStatus = updatedAssignment.status;
+    const timestampField =
+      typeof normalizedStatus === "string"
+        ? getStatusTimestampField(normalizedStatus)
+        : null;
+    const normalizedAssignment: Partial<DriverAssignment> = {
+      ...updatedAssignment,
+    };
+
+    if (timestampField) {
+      normalizedAssignment[timestampField] = occurredAt;
+    }
+
+    queryClient.setQueryData<Job[]>(["jobs"], (cachedJobs) => {
+      if (!Array.isArray(cachedJobs)) return cachedJobs;
+
+      return cachedJobs.map((cachedJob) =>
+        mergeAssignmentIntoJob(cachedJob, assignmentId, normalizedAssignment) ?? cachedJob
+      );
+    });
+
+    const jobQueries = queryClient.getQueriesData<Job>({ queryKey: ["job"] });
+    for (const [queryKey] of jobQueries) {
+      queryClient.setQueryData<Job>(queryKey, (cachedJob) =>
+        mergeAssignmentIntoJob(cachedJob, assignmentId, normalizedAssignment)
+      );
+    }
+  };
+
   useEffect(() => {
     LogBox.ignoreLogs([
       "Unable to activate keep awake",
@@ -196,8 +309,13 @@ export default function RootLayout() {
       isSyncing.current = true;
       try {
         await replayQueuedStatusUpdates(queue, {
-          patchStatus: (assignmentId, payload) =>
-            api.patch(`/job-driver-assignments/${assignmentId}/status/`, payload),
+          patchStatus: async (assignmentId, payload) => {
+            const response = await api.patch(`/job-driver-assignments/${assignmentId}/status/`, payload);
+            return response.data;
+          },
+          onSuccess: async (action, responseData) => {
+            mergeSyncedStatusUpdateIntoCache(action.assignmentId, responseData, action.occurredAt);
+          },
           removeAction,
           onConflict: async (action) => {
             Alert.alert(

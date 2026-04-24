@@ -12,7 +12,7 @@ import { enqueueAction } from '../../lib/offlineQueue';
 import { buildQueuedStatusUpdateAction, buildStatusUpdatePayload } from '../../lib/statusUpdatePayload';
 import { isStatusSyncConflict } from '../../lib/syncConflicts';
 import { useTheme } from '../../lib/ThemeContext';
-import { Job } from '../../lib/types'; // derive types from backend API
+import { DriverAssignment, Job } from '../../lib/types'; // derive types from backend API
 import { api } from '../../services/api';
 
 // This screen shows detailed information about a specific job, including addresses, foreman info, truck info, and allows updating job status. 
@@ -45,6 +45,92 @@ export default function JobDetailScreen() {
     job?.driver_assignments[0]?.backhaul_status ?? 'en_route'
   );
 
+  const getStatusTimestampField = (assignmentStatus: string): 'started_at' | 'on_site_at' | 'completed_at' | null => {
+    switch (assignmentStatus) {
+      case 'en_route':
+        return 'started_at';
+      case 'on_site':
+        return 'on_site_at';
+      case 'completed':
+        return 'completed_at';
+      default:
+        return null;
+    }
+  };
+
+  const extractUpdatedAssignment = (responseData: unknown): Partial<DriverAssignment> | null => {
+    if (!responseData || typeof responseData !== 'object') return null;
+
+    const responseObject = responseData as Record<string, any>;
+
+    if (responseObject.assignment && typeof responseObject.assignment === 'object') {
+      return responseObject.assignment as Partial<DriverAssignment>;
+    }
+
+    if (responseObject.driver_assignment && typeof responseObject.driver_assignment === 'object') {
+      return responseObject.driver_assignment as Partial<DriverAssignment>;
+    }
+
+    if (Array.isArray(responseObject.driver_assignments) && responseObject.driver_assignments[0]) {
+      return responseObject.driver_assignments[0] as Partial<DriverAssignment>;
+    }
+
+    if (
+      'id' in responseObject ||
+      'status' in responseObject ||
+      'started_at' in responseObject ||
+      'on_site_at' in responseObject ||
+      'completed_at' in responseObject ||
+      'backhaul_status' in responseObject ||
+      'backhaul_started_at' in responseObject ||
+      'backhaul_on_site_at' in responseObject ||
+      'backhaul_completed_at' in responseObject
+    ) {
+      return responseObject as Partial<DriverAssignment>;
+    }
+
+    return null;
+  };
+
+  const mergeAssignmentIntoJob = (cachedJob: Job | undefined, updatedAssignment: Partial<DriverAssignment> | null) => {
+    if (!cachedJob || !updatedAssignment) return cachedJob;
+
+    const updatedAssignmentId = updatedAssignment.id !== undefined && updatedAssignment.id !== null
+      ? String(updatedAssignment.id)
+      : null;
+
+    return {
+      ...cachedJob,
+      driver_assignments: cachedJob.driver_assignments.map((assignment, index) => {
+        const shouldUpdate = updatedAssignmentId
+          ? String(assignment.id) === updatedAssignmentId
+          : index === 0;
+
+        return shouldUpdate
+          ? { ...assignment, ...updatedAssignment }
+          : assignment;
+      }),
+    };
+  };
+
+  const applyUpdatedAssignmentToCache = (updatedAssignment: Partial<DriverAssignment> | null) => {
+    if (!jobId || !updatedAssignment) return;
+
+    queryClient.setQueryData<Job>(['job', jobId], (cachedJob) =>
+      mergeAssignmentIntoJob(cachedJob, updatedAssignment)
+    );
+
+    queryClient.setQueryData<Job[]>(['jobs'], (cachedJobs) => {
+      if (!Array.isArray(cachedJobs)) return cachedJobs;
+
+      return cachedJobs.map((cachedJob) => {
+        if (String(cachedJob.id) !== String(jobId)) return cachedJob;
+
+        return mergeAssignmentIntoJob(cachedJob, updatedAssignment) ?? cachedJob;
+      });
+    });
+  };
+
   const BACKHAUL_STATUS_LABELS = {
     en_route: 'En Route',
     on_site: 'On Site',
@@ -68,8 +154,17 @@ export default function JobDetailScreen() {
     }
   }, [job]);
 
-  const setCachedAssignmentStatus = (newStatus: string) => {
+  const setCachedAssignmentStatus = (newStatus: string, occurredAt?: string) => {
     if (!jobId) return;
+
+    const timestampField = getStatusTimestampField(newStatus);
+    const assignmentPatch: Partial<DriverAssignment> = {
+      status: newStatus,
+    };
+
+    if (timestampField && occurredAt) {
+      assignmentPatch[timestampField] = occurredAt;
+    }
 
     queryClient.setQueryData<Job>(['job', jobId], (cachedJob) => {
       if (!cachedJob?.driver_assignments?.length) return cachedJob;
@@ -77,7 +172,7 @@ export default function JobDetailScreen() {
       return {
         ...cachedJob,
         driver_assignments: cachedJob.driver_assignments.map((assignment, index) =>
-          index === 0 ? { ...assignment, status: newStatus } : assignment
+          index === 0 ? { ...assignment, ...assignmentPatch } : assignment
         ),
       };
     });
@@ -93,7 +188,7 @@ export default function JobDetailScreen() {
         return {
           ...cachedJob,
           driver_assignments: cachedJob.driver_assignments.map((assignment, index) =>
-            index === 0 ? { ...assignment, status: newStatus } : assignment
+            index === 0 ? { ...assignment, ...assignmentPatch } : assignment
           ),
         };
       });
@@ -163,8 +258,9 @@ export default function JobDetailScreen() {
     // always update UI immediately so the driver gets instant feedback
     // 'Optimistic update' - we assume success and roll back if the API call fails
     const previousStatus = status;
+    const occurredAt = new Date().toISOString();
     setStatus(newStatus);
-    setCachedAssignmentStatus(newStatus);
+    setCachedAssignmentStatus(newStatus, occurredAt);
 
     // Check connectivity before deciding whether to call the API or queue the action
     const { isConnected } = await NetInfo.fetch();
@@ -173,7 +269,7 @@ export default function JobDetailScreen() {
       try {
         // No connection - save the action locally and return.
         await enqueueAction(
-          buildQueuedStatusUpdateAction(assignmentId, newStatus, previousStatus)
+          buildQueuedStatusUpdateAction(assignmentId, newStatus, previousStatus, occurredAt)
         );
       } catch {
         setStatus(previousStatus);
@@ -187,10 +283,24 @@ export default function JobDetailScreen() {
     }
     // Online - try to update immediately, but roll back if it fails (e.g. server error, or connection drops mid-request)
     try {
-      await api.patch(
+      const res = await api.patch(
         `/job-driver-assignments/${assignmentId}/status/`,
-        buildStatusUpdatePayload(newStatus, previousStatus)
+        buildStatusUpdatePayload(newStatus, previousStatus, occurredAt)
       );
+      const updatedAssignment = extractUpdatedAssignment(res.data) ?? {};
+      const normalizedStatus = updatedAssignment.status ?? newStatus;
+      const normalizedTimestampField = getStatusTimestampField(normalizedStatus);
+      const mergedUpdatedAssignment: Partial<DriverAssignment> = {
+        ...updatedAssignment,
+        status: normalizedStatus,
+      };
+
+      if (normalizedTimestampField) {
+        mergedUpdatedAssignment[normalizedTimestampField] = occurredAt;
+      }
+
+      setStatus(normalizedStatus);
+      applyUpdatedAssignmentToCache(mergedUpdatedAssignment);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['job', jobId], refetchType: 'none' }),
         queryClient.invalidateQueries({ queryKey: ['jobs'], refetchType: 'none' }),
@@ -262,8 +372,9 @@ export default function JobDetailScreen() {
 
       if (!isConnected) {
         try {
+          const occurredAt = new Date().toISOString();
           await enqueueAction(
-            buildQueuedStatusUpdateAction(assignmentId, newStatus, previousStatus ?? 'en_route')
+            buildQueuedStatusUpdateAction(assignmentId, newStatus, previousStatus ?? 'en_route', occurredAt)
           );
         } catch {
           setBackhaulStatus(previousStatus);
@@ -277,10 +388,13 @@ export default function JobDetailScreen() {
       }
 
       try {
-        await api.patch(
+        const res = await api.patch(
           `/job-driver-assignments/${assignmentId}/backhaul-status/`,
           { status: newStatus }
         );
+        const updatedAssignment = extractUpdatedAssignment(res.data);
+        setBackhaulStatus(updatedAssignment?.backhaul_status ?? newStatus);
+        applyUpdatedAssignmentToCache(updatedAssignment);
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['job', jobId], refetchType: 'none' }),
           queryClient.invalidateQueries({ queryKey: ['jobs'], refetchType: 'none' }),
