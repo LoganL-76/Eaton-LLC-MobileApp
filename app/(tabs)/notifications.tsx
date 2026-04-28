@@ -4,10 +4,18 @@ import { formatDistanceToNow } from "date-fns";
 import { router } from "expo-router";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../../lib/ThemeContext";
-import { Notification } from "../../lib/types";
 import { api } from "../../services/api";
 
-async function fetchNotifications(): Promise<Notification[]> {
+type NotificationItem = {
+  id: number;
+  title: string;
+  body: string;
+  sent_at: string;
+  is_read: boolean;
+  data: unknown;
+};
+
+async function fetchNotifications(): Promise<NotificationItem[]> {
   const res = await api.get("/notifications/");
   return res.data.results ?? res.data;
 }
@@ -116,7 +124,7 @@ function makeStyles(theme: ReturnType<typeof import('../../lib/ThemeContext').us
     emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.spacing.lg, gap: theme.spacing.md },
     emptyTitle: { fontSize: theme.fontSize.lg, fontWeight: theme.fontWeight.bold, color: theme.colors.text, marginTop: theme.spacing.sm },
     emptySubtext: { fontSize: theme.fontSize.md, color: theme.colors.textSecondary, textAlign: 'center' },
-    card: { backgroundColor: theme.colors.card, marginHorizontal: theme.spacing.md, marginTop: theme.spacing.sm, borderRadius: 10, padding: theme.spacing.md },
+    card: { backgroundColor: theme.colors.surface, marginHorizontal: theme.spacing.md, marginTop: theme.spacing.sm, borderRadius: 10, padding: theme.spacing.md },
     cardUnread: { borderLeftWidth: 3, borderLeftColor: theme.colors.primary },
     cardRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.sm },
     cardContent: { flex: 1 },
