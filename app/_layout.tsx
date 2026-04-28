@@ -2,6 +2,7 @@ import { ClockProvider } from "@/contexts/ClockContext";
 import { asyncStoragePersister, queryClient } from "@/lib/queryClient";
 import { ActionSheetProvider } from "@expo/react-native-action-sheet";
 import NetInfo from "@react-native-community/netinfo";
+import { useQueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
@@ -32,7 +33,9 @@ Notifications.setNotificationHandler({
 
 function AppInitializer() {
   const { isAuthenticated, isLoading } = useAuth();
+  const queryClient = useQueryClient();
   const notificationListener = useRef<ReturnType<typeof Notifications.addNotificationReceivedListener> | null>(null);
+  
   const responseListener = useRef<ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | null>(null);
   const lastHandledResponseId = useRef<string | null>(null);
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
@@ -42,14 +45,22 @@ function AppInitializer() {
 
     const data = response.notification.request.content.data as Record<string, unknown>;
 
+    const normalizeId = (value: unknown): string | null => {
+      if (value === undefined || value === null) return null;
+
+      const stringValue = String(value).trim();
+      return stringValue.length > 0 ? stringValue : null;
+    };
+
     const rawJobId =
       data?.jobId ??
       data?.job_id ??
+      data?.assignmentId ??
+      data?.assignment_id ??
       data?.id ??
       (typeof data?.job === "object" && data.job !== null ? (data.job as Record<string, unknown>).id : undefined);
 
-    if (rawJobId === undefined || rawJobId === null) return null;
-    return String(rawJobId);
+    return normalizeId(rawJobId);
   };
 
   const handleNotificationResponse = (response: Notifications.NotificationResponse | null) => {
@@ -61,7 +72,7 @@ function AppInitializer() {
 
     const jobId = getJobIdFromNotificationResponse(response);
     if (jobId) {
-      router.push({ pathname: "/job/[id]", params: { id: jobId } });
+      router.push(`/job/${jobId}`);
       return;
     }
 
@@ -115,9 +126,12 @@ function AppInitializer() {
         handleNotificationResponse(response);
       });
 
+
       notificationListener.current = Notifications.addNotificationReceivedListener(() => {
-        // Foreground notification received
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       });
+
+      
 
       responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
         handleNotificationResponse(response);
