@@ -1,6 +1,7 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
+import { router } from "expo-router";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../../lib/ThemeContext";
 import { Notification } from "../../lib/types";
@@ -9,6 +10,23 @@ import { api } from "../../services/api";
 async function fetchNotifications(): Promise<Notification[]> {
   const res = await api.get("/notifications/");
   return res.data.results ?? res.data;
+}
+
+function getJobIdFromNotificationData(data: unknown): string | null {
+  if (!data || typeof data !== "object") return null;
+
+  const notificationData = data as Record<string, unknown>;
+  const rawJobId =
+    notificationData.jobId ??
+    notificationData.job_id ??
+    notificationData.assignmentId ??
+    notificationData.assignment_id ??
+    notificationData.id;
+
+  if (rawJobId === undefined || rawJobId === null) return null;
+
+  const jobId = String(rawJobId).trim();
+  return jobId.length > 0 ? jobId : null;
 }
 
 export default function NotificationsScreen() {
@@ -55,7 +73,16 @@ export default function NotificationsScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.card, !item.is_read && styles.cardUnread]}
-            onPress={() => { if (!item.is_read) markRead.mutate(item.id); }}
+            onPress={() => {
+              if (!item.is_read) {
+                markRead.mutate(item.id);
+              }
+
+              const jobId = getJobIdFromNotificationData(item.data);
+              if (jobId) {
+                router.push(`/job/${jobId}`);
+              }
+            }}
             activeOpacity={0.7}
           >
             <View style={styles.cardRow}>
